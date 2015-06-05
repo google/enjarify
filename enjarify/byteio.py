@@ -58,7 +58,7 @@ class Reader:
     # Maintain strings in binary encoding instead of attempting to decode them
     # since the output will be using the same encoding anyway
     def readCStr(self):
-        oldpos, self.pos = self.pos, self.data.find(0, self.pos)
+        oldpos, self.pos = self.pos, self.data.find(b'\0', self.pos)
         return self.data[oldpos:self.pos]
 
 class Writer:
