@@ -70,7 +70,7 @@ class IRBlock:
         else:
             self.add(ir.RegAccess(reg, stype, store=False))
             # cast to appropriate type if tainted
-            if stype == scalars.OBJ and reg in self.type_data.tainted:
+            if stype == scalars.OBJ and self.type_data.tainted[reg]:
                 assert(desc is None or clsname is None)
                 if clsname is None:
                     # remember to handle arrays - also fallthrough if desc is None
@@ -84,7 +84,7 @@ class IRBlock:
             self.const_null()
         else:
             self.add(ir.RegAccess(reg, scalars.OBJ, store=False))
-            if reg in self.type_data.tainted:
+            if self.type_data.tainted[reg]:
                 if at == arrays.INVALID:
                     # needs to be some type of object array, so just cast to Object[]
                     self.u8u16(CHECKCAST, self.pool.class_(b'[Ljava/lang/Object;'))

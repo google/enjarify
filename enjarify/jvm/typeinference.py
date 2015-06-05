@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
+import collections, operator
 
 from . import arraytypes as arrays
 from . import scalartypes as scalars
 from . import mathops, jvmops
+from .treelist import ImmutableTreeList
 from .. import flags, dalvik
+
 
 # The two main things we need type inference for are determining the types of
 # primative values and arrays. Luckily, we don't care about actual classes in
@@ -44,16 +46,13 @@ class TypeInfo:
         self.arrs = arrs
         self.tainted = tainted
 
-    def _copy(self): return TypeInfo(self.prims[:], self.arrs[:], self.tainted.copy())
-    def _get(self, reg): return self.prims[reg], self.arrs[reg], reg in self.tainted
+    def _copy(self): return TypeInfo(self.prims, self.arrs, self.tainted)
+    def _get(self, reg): return self.prims[reg], self.arrs[reg], self.tainted[reg]
 
     def _set(self, reg, st, at, taint=False):
-        self.prims[reg] = st
-        self.arrs[reg] = at
-        if taint:
-            self.tainted.add(reg)
-        else:
-            self.tainted.discard(reg)
+        self.prims = self.prims.set(reg, st)
+        self.arrs = self.arrs.set(reg, at)
+        self.tainted = self.tainted.set(reg, taint)
         return self
 
     def move(self, src, dest, wide):
@@ -80,10 +79,10 @@ class TypeInfo:
             return self.assign(reg, st, at)
 
 def merge(old, new):
-    prims = [x & y for x,y in zip(old.prims, new.prims)]
-    arrs = [arrays.merge(x, y) for x,y in zip(old.arrs, new.arrs)]
-    tainted = old.tainted | new.tainted
-    if prims == old.prims and arrs == old.arrs and tainted == old.tainted:
+    prims = ImmutableTreeList.merge(old.prims, new.prims, operator.__and__)
+    arrs = ImmutableTreeList.merge(old.arrs, new.arrs, arrays.merge)
+    tainted = ImmutableTreeList.merge(old.tainted, new.tainted, operator.__or__)
+    if prims is old.prims and arrs is old.arrs and tainted is old.tainted:
         return old
     return TypeInfo(prims, arrs, tainted)
 
@@ -92,13 +91,15 @@ def fromParams(method, num_regs):
     full_ptypes = method.id.getSpacedParamTypes(isstatic)
     offset = num_regs - len(full_ptypes)
 
-    prim_types = [scalars.INVALID] * num_regs
-    arr_types = [arrays.INVALID] * num_regs
+    prims = ImmutableTreeList(scalars.INVALID)
+    arrs = ImmutableTreeList(arrays.INVALID)
+    tainted = ImmutableTreeList(False)
+
     for i, desc in enumerate(full_ptypes):
         if desc is not None:
-            prim_types[offset + i] = scalars.fromDesc(desc)
-            arr_types[offset + i] = arrays.fromDesc(desc)
-    return TypeInfo(prim_types, arr_types, set())
+            prims = prims.set(offset + i, scalars.fromDesc(desc))
+            arrs = arrs.set(offset + i, arrays.fromDesc(desc))
+    return TypeInfo(prims, arrs, tainted)
 
 _MATH_THROW_OPS = [jvmops.IDIV, jvmops.IREM, jvmops.LDIV, jvmops.LREM]
 def pruneHandlers(all_handlers):
