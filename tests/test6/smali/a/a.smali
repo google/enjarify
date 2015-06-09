@@ -108,7 +108,65 @@
     invoke-virtual {v0}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
     move-result-object v0
 	invoke-static {v0}, LL/util;->print(Ljava/lang/Object;)V
+    return-void
+.end method
 
+.method public static eq(Ljava/lang/Class;Ljava/lang/Class;)Ljava/lang/String;
+    .locals 0
+    if-eq p0, p1, :else
+        const-string p0, "False"
+        return-object p0
+    :else
+        const-string p1, "True"
+        return-object p1
+.end method
+
+.method public static testClassConstants()V
+    .locals 04
+    const-string v0, "testClassConstants"
+    invoke-static {v0}, LL/util;->print(Ljava/lang/Object;)V
+
+    #new-instance v0, Lﬃ;
+    #invoke-direct {v0}, Lﬃ;-><init>()V
+
+    ############################################################################
+    new-instance v0, Lfinal;
+    invoke-direct {v0}, Lfinal;-><init>()V
+
+    invoke-virtual {v0}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+    move-result-object v1
+    const-class v2, Lfinal;
+
+    invoke-static {v1, v2}, La/a;->eq(Ljava/lang/Class;Ljava/lang/Class;)Ljava/lang/String;
+    move-result-object v1
+    invoke-static {v2}, LL/util;->print(Ljava/lang/Object;)V
+    invoke-static {v1}, LL/util;->print(Ljava/lang/Object;)V
+
+    ############################################################################
+    filled-new-array {v0}, [L-2;
+    move-result-object v0
+
+    invoke-virtual {v0}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+    move-result-object v1
+    const-class v2, [L-2;
+
+    invoke-static {v1, v2}, La/a;->eq(Ljava/lang/Class;Ljava/lang/Class;)Ljava/lang/String;
+    move-result-object v1
+    invoke-static {v2}, LL/util;->print(Ljava/lang/Object;)V
+    invoke-static {v1}, LL/util;->print(Ljava/lang/Object;)V
+
+    ############################################################################
+    filled-new-array {v0}, [[Lﬃ;
+    move-result-object v0
+
+    invoke-virtual {v0}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+    move-result-object v1
+    const-class v2, [[Lﬃ;
+
+    invoke-static {v1, v2}, La/a;->eq(Ljava/lang/Class;Ljava/lang/Class;)Ljava/lang/String;
+    move-result-object v1
+    invoke-static {v2}, LL/util;->print(Ljava/lang/Object;)V
+    invoke-static {v1}, LL/util;->print(Ljava/lang/Object;)V
 
     return-void
 .end method
@@ -122,6 +180,7 @@
 
     invoke-static {}, La/a;->testFallthrough()V
     invoke-static {}, La/a;->testVirtualClasses()V
+    invoke-static {}, La/a;->testClassConstants()V
 
     return-void
 .end method

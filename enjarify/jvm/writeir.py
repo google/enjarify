@@ -315,7 +315,8 @@ def visitConstString(method, dex, instr_d, type_data, block, instr):
     block.store(instr.args[0], scalars.OBJ)
 
 def visitConstClass(method, dex, instr_d, type_data, block, instr):
-    val = dex.type(instr.args[1])
+    # Could use dex.type here since the JVM doesn't care, but this is cleaner
+    val = dex.clsType(instr.args[1])
     block.ldc(block.pool.class_(val))
     block.store(instr.args[0], scalars.OBJ)
 
