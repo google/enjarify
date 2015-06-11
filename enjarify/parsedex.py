@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,23 +20,25 @@ from .util import signExtend
 
 NO_INDEX = 0xFFFFFFFF
 
+
 def typeList(dex, off, parseClsDesc=False):
     if off == 0:
         return []
-    size = dex.u32s[off//4]
-    u16_off = (off//4 + 1) * 2
-    idxs = dex.u16s[u16_off:u16_off+size]
+    size = dex.u32s[off // 4]
+    u16_off = (off // 4 + 1) * 2
+    idxs = dex.u16s[u16_off:u16_off + size]
     func = dex.clsType if parseClsDesc else dex.type
     return list(map(func, idxs))
+
 
 def encodedValue(dex, stream):
     tag = stream.u8()
     vtype, varg = tag & 31, tag >> 5
 
-    if vtype == 0x1c: # ARRAY
+    if vtype == 0x1c:  # ARRAY
         size = stream.uleb128()
         return [encodedValue(dex, stream) for _ in range(size)]
-    if vtype == 0x1d: # ANNOTATION
+    if vtype == 0x1d:  # ANNOTATION
         # We don't actually care about annotations but still need to read it to
         # find out how much data is taken up
         stream.uleb128()
@@ -44,42 +46,44 @@ def encodedValue(dex, stream):
             stream.uleb128()
             encodedValue(dex, stream)
         return None
-    if vtype == 0x1e: # NULL
+    if vtype == 0x1e:  # NULL
         return None
 
     # For the rest, we just return it as unsigned integers without recording type
     # extended to either u32 or u64 depending on int/float or long/double
-    if vtype == 0x1f: # BOOLEAN
+    if vtype == 0x1f:  # BOOLEAN
         return b'I', varg
     # the rest are an int encoded into varg + 1 bytes in some way
     size = varg + 1
-    val = sum(stream.u8() << (i*8) for i in range(size))
+    val = sum(stream.u8() << (i * 8) for i in range(size))
 
-    if vtype == 0x00: # BYTE
-        return b'I', signExtend(val, 8) % (1<<32)
-    if vtype == 0x02: # SHORT
-        return b'I', signExtend(val, 16) % (1<<32)
-    if vtype == 0x03: # CHAR
+    if vtype == 0x00:  # BYTE
+        return b'I', signExtend(val, 8) % (1 << 32)
+    if vtype == 0x02:  # SHORT
+        return b'I', signExtend(val, 16) % (1 << 32)
+    if vtype == 0x03:  # CHAR
         return b'I', val
-    if vtype == 0x04: # INT
+    if vtype == 0x04:  # INT
         return b'I', val
 
-    if vtype == 0x06: # LONG
+    if vtype == 0x06:  # LONG
         return b'J', val
 
     # floats are 0 extended to the right
-    if vtype == 0x10: # FLOAT
+    if vtype == 0x10:  # FLOAT
         return b'F', val << (32 - size * 8)
-    if vtype == 0x11: # DOUBLE
+    if vtype == 0x11:  # DOUBLE
         return b'D', val << (64 - size * 8)
 
-    if vtype == 0x17: # STRING
+    if vtype == 0x17:  # STRING
         return b'Ljava/lang/String;', dex.string(val)
-    if vtype == 0x18: # TYPE
+    if vtype == 0x18:  # TYPE
         return b'Ljava/lang/Class;', dex.clsType(val)
+
 
 class MFIdMixin:
     def triple(self): return self.cname, self.name, self.desc
+
 
 class FieldId(MFIdMixin):
     def __init__(self, dex, field_idx):
@@ -88,12 +92,14 @@ class FieldId(MFIdMixin):
         self.desc = dex.type(stream.u16())
         self.name = dex.string(stream.u32())
 
+
 class Field:
     def __init__(self, dex, field_idx, access):
         self.dex = dex
         self.id = FieldId(dex, field_idx)
         self.access = access
-        self.constant_value = None # will be set later
+        self.constant_value = None  # will be set later
+
 
 class MethodId(MFIdMixin):
     def __init__(self, dex, method_idx):
@@ -101,8 +107,8 @@ class MethodId(MFIdMixin):
         self.cname = dex.clsType(stream.u16())
         proto_idx = stream.u16()
         self.name = dex.string(stream.u32())
-        off = (dex.proto_ids.off + proto_idx * 12)//4
-        shorty_idx, return_idx, parameters_off = dex.u32s[off:off+3]
+        off = (dex.proto_ids.off + proto_idx * 12) // 4
+        shorty_idx, return_idx, parameters_off = dex.u32s[off:off + 3]
         self.return_type = dex.type(return_idx)
         self.param_types = typeList(dex, parameters_off)
 
@@ -124,11 +130,12 @@ class MethodId(MFIdMixin):
                 results.append(None)
         return results
 
+
 class TryItem:
     def __init__(self, stream):
         self.start, self.count, self.handler_off = stream.u32(), stream.u16(), stream.u16()
         self.end = self.start + self.count
-        self.catches = None # to be filled in later
+        self.catches = None  # to be filled in later
 
     def finish(self, dex, list_off):
         stream = dex.stream(list_off + self.handler_off)
@@ -138,6 +145,7 @@ class TryItem:
             results.append((dex.clsType(stream.uleb128()), stream.uleb128()))
         if size <= 0:
             results.append((b'java/lang/Throwable', stream.uleb128()))
+
 
 class CodeItem:
     def __init__(self, dex, offset):
@@ -151,7 +159,7 @@ class CodeItem:
         insns_start_pos = stream.pos
         insns = [stream.u16() for _ in range(self.insns_size)]
         if tries_size and self.insns_size & 1:
-            stream.u16() # padding
+            stream.u16()  # padding
         self.tries = [TryItem(stream) for _ in range(tries_size)]
         self.list_off = stream.pos
         for item in self.tries:
@@ -162,6 +170,7 @@ class CodeItem:
             catch_addrs.update(t[1] for t in tryi.catches)
         self.bytecode = parseBytecode(dex, insns_start_pos, insns, catch_addrs)
 
+
 class Method:
     def __init__(self, dex, method_idx, access, code_off):
         self.dex = dex
@@ -169,6 +178,7 @@ class Method:
         self.access = access
         self.code_off = code_off
         self.code = CodeItem(dex, code_off) if code_off else None
+
 
 class ClassData:
     def __init__(self, dex, offset):
@@ -198,11 +208,12 @@ class ClassData:
                 method_idx += stream.uleb128()
                 methods.append(Method(dex, method_idx, stream.uleb128(), stream.uleb128()))
 
+
 class DexClass:
     def __init__(self, dex, base_off, i):
         self.dex = dex
-        offset = base_off//4 + i*8
-        words = dex.u32s[offset:offset+8]
+        offset = base_off // 4 + i * 8
+        words = dex.u32s[offset:offset + 8]
         self.name = dex.clsType(words[0])
         self.access = words[1]
         self.super = dex.clsType(words[2]) if words[2] != NO_INDEX else None
@@ -210,7 +221,7 @@ class DexClass:
         # ignore sourcefile for now
         # ignore annotations for now
         self.data_off = words[6]
-        self.data = None # parse data lazily in parseData()
+        self.data = None  # parse data lazily in parseData()
         self.constant_values_off = words[7]
 
     def parseData(self):
@@ -224,18 +235,20 @@ class DexClass:
                     field.constant_value = val
         return self.data
 
+
 class SizeOff:
     def __init__(self, stream):
         self.size = stream.u32()
         self.off = stream.u32()
 
+
 class DexFile:
     def __init__(self, data):
         self.raw = data
         self.u16s = array.array('H', data)
-        assert(self.u16s.itemsize == 2)
+        assert (self.u16s.itemsize == 2)
         self.u32s = array.array('I', data)
-        assert(self.u32s.itemsize == 4)
+        assert (self.u32s.itemsize == 4)
 
         stream = Reader(data)
 
@@ -261,17 +274,18 @@ class DexFile:
         for i in range(defs.size):
             self.classes.append(DexClass(self, defs.off, i))
 
-    def stream(self, offset): return Reader(self.raw, offset)
+    def stream(self, offset):
+        return Reader(self.raw, offset)
 
     def string(self, i):
-        data_off = self.u32s[self.string_ids.off//4 + i]
+        data_off = self.u32s[self.string_ids.off // 4 + i]
         stream = self.stream(data_off)
-        stream.uleb128() # ignore decoded length
+        stream.uleb128()  # ignore decoded length
         return stream.readCStr()
 
     def type(self, i):
         if 0 <= i < NO_INDEX:
-            return self.string(self.u32s[self.type_ids.off//4 + i])
+            return self.string(self.u32s[self.type_ids.off // 4 + i])
 
     def clsType(self, i):
         # Can be either class _name_ or array _descriptor_
@@ -281,5 +295,8 @@ class DexFile:
         elif desc.startswith(b'L'):
             return desc[1:-1]
 
-    def field_id(self, i): return FieldId(self, i)
-    def method_id(self, i): return MethodId(self, i)
+    def field_id(self, i):
+        return FieldId(self, i)
+
+    def method_id(self, i):
+        return MethodId(self, i)
