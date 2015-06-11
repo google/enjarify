@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,6 +16,7 @@ import struct
 
 from .util import signExtend
 
+
 class Reader:
     def __init__(self, data, pos=0):
         self.data = data
@@ -24,7 +25,7 @@ class Reader:
     def read(self, size):
         if not 0 <= size <= len(self.data) - self.pos:
             raise IndexError
-        result = self.data[self.pos: self.pos+size]
+        result = self.data[self.pos: self.pos + size]
         self.pos += size
         return result
 
@@ -32,10 +33,17 @@ class Reader:
         fmt = struct.Struct(fmt)
         return fmt.unpack_from(self.read(fmt.size))[0]
 
-    def u8(self): return self.read(1)[0]
-    def u16(self): return self._unpack('<H')
-    def u32(self): return self._unpack('<I')
-    def u64(self): return self._unpack('<Q')
+    def u8(self):
+        return self.read(1)[0]
+
+    def u16(self):
+        return self._unpack('<H')
+
+    def u32(self):
+        return self._unpack('<I')
+
+    def u64(self):
+        return self._unpack('<Q')
 
     def _leb128(self, signed=False):
         result = 0
@@ -52,14 +60,18 @@ class Reader:
             result = signExtend(result, size)
         return result
 
-    def uleb128(self): return self._leb128()
-    def sleb128(self): return self._leb128(signed=True)
+    def uleb128(self):
+        return self._leb128()
+
+    def sleb128(self):
+        return self._leb128(signed=True)
 
     # Maintain strings in binary encoding instead of attempting to decode them
     # since the output will be using the same encoding anyway
     def readCStr(self):
         oldpos, self.pos = self.pos, self.data.find(b'\0', self.pos)
         return self.data[oldpos:self.pos]
+
 
 class Writer:
     def __init__(self):
@@ -80,10 +92,17 @@ class Writer:
     def _pack(self, fmt, arg):
         return self.write(struct.pack(fmt, arg))
 
-    def u8(self, x): return self.write(bytes([x]))
-    def u16(self, x): return self._pack('>H', x)
-    def u32(self, x): return self._pack('>I', x)
-    def u64(self, x): return self._pack('>Q', x)
+    def u8(self, x):
+        return self.write(bytes([x]))
+
+    def u16(self, x):
+        return self._pack('>H', x)
+
+    def u32(self, x):
+        return self._pack('>I', x)
+
+    def u64(self, x):
+        return self._pack('>Q', x)
 
     def toBytes(self):
         return b''.join(self.strings)

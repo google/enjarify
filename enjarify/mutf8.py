@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,6 +16,7 @@
 # have to write a custom decoder. This one is error tolerant and will decode
 # anything resembling mutf8.
 
+
 def _decode(b):
     # decode arbitrary utf8 codepoints, tolerating surrogate pairs, nonstandard encodings, etc.
     for x in b:
@@ -25,15 +26,16 @@ def _decode(b):
             # figure out how many bytes
             extra = 0
             for i in range(6, 0, -1):
-                if x & (1<<i):
+                if x & (1 << i):
                     extra += 1
                 else:
                     break
 
-            bits = x % (1 << 6-extra)
+            bits = x % (1 << 6 - extra)
             for _ in range(extra):
                 bits = (bits << 6) ^ (next(b) & 63)
             yield bits
+
 
 def _fixPairs(codes):
     # convert surrogate pairs to single code points
@@ -44,6 +46,7 @@ def _fixPairs(codes):
             yield 0x10000 + (high << 10) + (low & 1023)
         else:
             yield x
+
 
 def decode(b):
     try:
