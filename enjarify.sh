@@ -36,7 +36,7 @@ else
 	echo "Using $PYTHON as Python interperter"
 
 	# Find location of this bash script, and set its directory as the PYTHONPATH
-	PYTHONPATH=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
+	export PYTHONPATH=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
 
 	# Now execute the actual program
 	exec $PYTHON -O -m enjarify.main "$@"
