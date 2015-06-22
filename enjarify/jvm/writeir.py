@@ -455,7 +455,7 @@ def visitInstanceGet(method, dex, instr_d, type_data, block, instr):
     field_id = dex.field_id(instr.args[2])
     st = scalars.fromDesc(field_id.desc)
     block.load(instr.args[1], scalars.OBJ, clsname=field_id.cname)
-    block.u8u16(GETFIELD, block.pool.field(*field_id.triple()))
+    block.u8u16(GETFIELD, block.pool.field(field_id.triple()))
     block.store(instr.args[0], st)
 
 def visitInstancePut(method, dex, instr_d, type_data, block, instr):
@@ -463,19 +463,19 @@ def visitInstancePut(method, dex, instr_d, type_data, block, instr):
     st = scalars.fromDesc(field_id.desc)
     block.load(instr.args[1], scalars.OBJ, clsname=field_id.cname)
     block.load(instr.args[0], st, desc=field_id.desc)
-    block.u8u16(PUTFIELD, block.pool.field(*field_id.triple()))
+    block.u8u16(PUTFIELD, block.pool.field(field_id.triple()))
 
 def visitStaticGet(method, dex, instr_d, type_data, block, instr):
     field_id = dex.field_id(instr.args[1])
     st = scalars.fromDesc(field_id.desc)
-    block.u8u16(GETSTATIC, block.pool.field(*field_id.triple()))
+    block.u8u16(GETSTATIC, block.pool.field(field_id.triple()))
     block.store(instr.args[0], st)
 
 def visitStaticPut(method, dex, instr_d, type_data, block, instr):
     field_id = dex.field_id(instr.args[1])
     st = scalars.fromDesc(field_id.desc)
     block.load(instr.args[0], st, desc=field_id.desc)
-    block.u8u16(PUTSTATIC, block.pool.field(*field_id.triple()))
+    block.u8u16(PUTSTATIC, block.pool.field(field_id.triple()))
 
 def visitInvoke(method, dex, instr_d, type_data, block, instr):
     isstatic = isinstance(instr, dalvik.InvokeStatic)
@@ -498,9 +498,9 @@ def visitInvoke(method, dex, instr_d, type_data, block, instr):
 
     if isinstance(instr, dalvik.InvokeInterface):
         count = len(called_id.getSpacedParamTypes(False))
-        block.u8u16u8u8(op, block.pool.imethod(*called_id.triple()), count, 0)
+        block.u8u16u8u8(op, block.pool.imethod(called_id.triple()), count, 0)
     else:
-        block.u8u16(op, block.pool.method(*called_id.triple()))
+        block.u8u16(op, block.pool.method(called_id.triple()))
 
     # check if we need to pop result instead of leaving on stack
     if not isinstance(instr_d.get(instr.pos2), dalvik.MoveResult):

@@ -40,46 +40,35 @@ class ConstantPoolBase:
         # lookup dicts for deduplicating constants
         self.lookup = [{} for _ in range(MAX_CONST + 1)]
 
-    def _get(self, tag, func, *args):
+    def _get(self, tag, args):
         d = self.lookup[tag]
         try:
             return d[args]
         except KeyError:
-            encoded_data = (tag,) + func(*args)
-
             low = tag in (CONSTANT_Integer, CONSTANT_Float, CONSTANT_String)
             d[args] = index = self._getInd(low, _width(tag))
 
             assert(self.vals[index] is None)
-            self.vals[index] = encoded_data
+            self.vals[index] = tag, args
         return d[args]
-
-    # convert arguments to recursive constant pool entries if necessary
-    def _utf8(self, s): return s,
-    def _class(self, s): return self.utf8(s),
-    def _string(self, s): return self.utf8(s),
-    def _nat(self, name, desc): return self.utf8(name), self.utf8(desc),
-    def _triple(self, cname, name, desc): return self.class_(cname), self.nat(name, desc)
-    def _const(self, x): return x,
 
     def insertDirectly(self, pair, low):
         tag, x = pair
         d = self.lookup[tag]
-        d[(x,)] = index = self._getInd(low, _width(tag))
+        d[x] = index = self._getInd(low, _width(tag))
         self.vals[index] = pair
 
     def tryGet(self, pair):
         tag, x = pair
-        args = x,
         d = self.lookup[tag]
         try:
-            return d[args]
+            return d[x]
         except KeyError:
             pass
         width = _width(tag)
         if width > self.space():
             return None
-        d[args] = index = self._getInd(True, width)
+        d[x] = index = self._getInd(True, width)
         self.vals[index] = pair
         return index
 
@@ -87,29 +76,30 @@ class ConstantPoolBase:
         assert(isinstance(s, bytes))
         if len(s) > 65535:
             raise error.ClassfileLimitExceeded()
-        return self._get(CONSTANT_Utf8, self._utf8, s)
+        return self._get(CONSTANT_Utf8, s)
 
-    def class_(self, s):
-        return self._get(CONSTANT_Class, self._class, s)
+    def class_(self, s): return self._get(CONSTANT_Class, self.utf8(s))
+    def string(self, s): return self._get(CONSTANT_String, self.utf8(s))
 
-    def string(self, s):
-        return self._get(CONSTANT_String, self._string, s)
+    def nat(self, name, desc):
+        return self._get(CONSTANT_NameAndType, (self.utf8(name), self.utf8(desc)))
 
-    def nat(self, *args): return self._get(CONSTANT_NameAndType, self._nat, *args)
-    def field(self, *args): return self._get(CONSTANT_Fieldref, self._triple, *args)
-    def method(self, *args): return self._get(CONSTANT_Methodref, self._triple, *args)
-    def imethod(self, *args): return self._get(CONSTANT_InterfaceMethodref, self._triple, *args)
+    def _triple(self, tag, trip):
+        return self._get(tag, (self.class_(trip[0]), self.nat(trip[1], trip[2])))
 
-    def int(self, x): return self._get(CONSTANT_Integer, self._const, x)
-    def float(self, x): return self._get(CONSTANT_Float, self._const, x)
-    def long(self, x): return self._get(CONSTANT_Long, self._const, x)
-    def double(self, x): return self._get(CONSTANT_Double, self._const, x)
+    def field(self, trip): return self._triple(CONSTANT_Fieldref, trip)
+    def method(self, trip): return self._triple(CONSTANT_Methodref, trip)
+    def imethod(self, trip): return self._triple(CONSTANT_InterfaceMethodref, trip)
+
+    def int(self, x): return self._get(CONSTANT_Integer, x)
+    def float(self, x): return self._get(CONSTANT_Float, x)
+    def long(self, x): return self._get(CONSTANT_Long, x)
+    def double(self, x): return self._get(CONSTANT_Double, x)
 
     def _writeEntry(self, stream, item):
         if item is None:
             return
-        tag, vals = item[0], item[1:]
-        val = vals[0]
+        tag, val = item
         stream.u8(tag)
 
         if tag == CONSTANT_Utf8:
@@ -119,9 +109,11 @@ class ConstantPoolBase:
             stream.u32(val)
         elif tag in (CONSTANT_Long, CONSTANT_Double):
             stream.u64(val)
+        elif tag in (CONSTANT_Class, CONSTANT_String):
+            stream.u16(val)
         else:
-            for x in vals:
-                stream.u16(x)
+            stream.u16(val[0])
+            stream.u16(val[1])
 
 # A simple constant pool that just allocates slots in increasing order.
 class SimpleConstantPool(ConstantPoolBase):
