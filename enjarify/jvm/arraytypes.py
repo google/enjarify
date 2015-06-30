@@ -19,10 +19,11 @@ from . import scalartypes as scalars
 # use a single value for them (INVALID) and assume all such values are an object
 # array of some type. For primative arrays, we just use the entire array descriptor
 # e.g. b'[[[C', except that bool arrays are treated as byte arrays.
-# For null we use a special marker object (in this case, a unicode string)
+# For null we use a special marker object
 
-INVALID = None # nonref or object or object array
-NULL = 'NULL' # make sure this isn't a bytestring or else it could clash with real descriptors
+# These strings can't be valid descriptors so there's no conflict
+INVALID = b'INVALID'
+NULL = b'NULL'
 
 def merge(t1, t2):
     if t1 is NULL:
