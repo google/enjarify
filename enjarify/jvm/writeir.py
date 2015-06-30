@@ -497,8 +497,7 @@ def visitInvoke(method, dex, instr_d, type_data, block, instr):
     }[type(instr)]
 
     if isinstance(instr, dalvik.InvokeInterface):
-        count = len(called_id.getSpacedParamTypes(False))
-        block.u8u16u8u8(op, block.pool.imethod(called_id.triple()), count, 0)
+        block.u8u16u8u8(op, block.pool.imethod(called_id.triple()), len(descs), 0)
     else:
         block.u8u16(op, block.pool.method(called_id.triple()))
 
