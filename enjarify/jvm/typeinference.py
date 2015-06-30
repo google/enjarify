@@ -129,61 +129,61 @@ def pruneHandlers(all_handlers):
 ################################################################################
 # Lots of instructions just return an object or int for type inference purposes
 # so we have a single function for these cases
-def visitRetObj(dex, instr, cur, after):
-    return after.assign(instr.args[0], scalars.OBJ)
-def visitRetInt(dex, instr, cur, after):
-    return after.assign(instr.args[0], scalars.INT)
+def visitRetObj(dex, instr, cur):
+    return cur.assign(instr.args[0], scalars.OBJ)
+def visitRetInt(dex, instr, cur):
+    return cur.assign(instr.args[0], scalars.INT)
 
 # Instruction specific callbacks
-def visitMove(dex, instr, cur, after):
-    return after.move(instr.args[1], instr.args[0], wide=False)
-def visitMoveWide(dex, instr, cur, after):
-    return after.move(instr.args[1], instr.args[0], wide=True)
-def visitMoveResult(dex, instr, cur, after):
-    return after.assignFromDesc(instr.args[0], instr.prev_result)
-def visitConst32(dex, instr, cur, after):
+def visitMove(dex, instr, cur):
+    return cur.move(instr.args[1], instr.args[0], wide=False)
+def visitMoveWide(dex, instr, cur):
+    return cur.move(instr.args[1], instr.args[0], wide=True)
+def visitMoveResult(dex, instr, cur):
+    return cur.assignFromDesc(instr.args[0], instr.prev_result)
+def visitConst32(dex, instr, cur):
     val = instr.args[1] % (1<<32)
     if val == 0:
-        return after.assign(instr.args[0], scalars.ZERO, arrays.NULL)
+        return cur.assign(instr.args[0], scalars.ZERO, arrays.NULL)
     else:
-        return after.assign(instr.args[0], scalars.C32)
-def visitConst64(dex, instr, cur, after):
-    return after.assign2(instr.args[0], scalars.C64)
-def visitCheckCast(dex, instr, cur, after):
+        return cur.assign(instr.args[0], scalars.C32)
+def visitConst64(dex, instr, cur):
+    return cur.assign2(instr.args[0], scalars.C64)
+def visitCheckCast(dex, instr, cur):
     at = arrays.fromDesc(dex.type(instr.args[1]))
-    at = arrays.narrow(after.arrs[instr.args[0]], at)
-    return after.assign(instr.args[0], scalars.OBJ, at)
-def visitNewArray(dex, instr, cur, after):
+    at = arrays.narrow(cur.arrs[instr.args[0]], at)
+    return cur.assign(instr.args[0], scalars.OBJ, at)
+def visitNewArray(dex, instr, cur):
     at = arrays.fromDesc(dex.type(instr.args[2]))
-    return after.assign(instr.args[0], scalars.OBJ, at)
-def visitArrayGet(dex, instr, cur, after):
+    return cur.assign(instr.args[0], scalars.OBJ, at)
+def visitArrayGet(dex, instr, cur):
     arr_at = cur.arrs[instr.args[1]]
     if arr_at is arrays.NULL:
         # This is unreachable, so use (ALL, NULL), which can be merged with anything
-        return after.assign(instr.args[0], scalars.ALL, arrays.NULL)
+        return cur.assign(instr.args[0], scalars.ALL, arrays.NULL)
     else:
         st, at = arrays.eletPair(arr_at)
-        return after.assign(instr.args[0], st, at)
-def visitInstanceGet(dex, instr, cur, after):
+        return cur.assign(instr.args[0], st, at)
+def visitInstanceGet(dex, instr, cur):
     field_id = dex.field_id(instr.args[2])
-    return after.assignFromDesc(instr.args[0], field_id.desc)
-def visitStaticGet(dex, instr, cur, after):
+    return cur.assignFromDesc(instr.args[0], field_id.desc)
+def visitStaticGet(dex, instr, cur):
     field_id = dex.field_id(instr.args[1])
-    return after.assignFromDesc(instr.args[0], field_id.desc)
+    return cur.assignFromDesc(instr.args[0], field_id.desc)
 
-def visitUnaryOp(dex, instr, cur, after):
+def visitUnaryOp(dex, instr, cur):
     _, _, st = mathops.UNARY[instr.opcode]
     if scalars.iswide(st):
-        return after.assign2(instr.args[0], st)
+        return cur.assign2(instr.args[0], st)
     else:
-        return after.assign(instr.args[0], st)
+        return cur.assign(instr.args[0], st)
 
-def visitBinaryOp(dex, instr, cur, after):
+def visitBinaryOp(dex, instr, cur):
     _, st, _ = mathops.BINARY[instr.opcode]
     if scalars.iswide(st):
-        return after.assign2(instr.args[0], st)
+        return cur.assign2(instr.args[0], st)
     else:
-        return after.assign(instr.args[0], st)
+        return cur.assign(instr.args[0], st)
 
 FUNCS = {
     dalvik.ConstString: visitRetObj,
@@ -247,7 +247,7 @@ def doInference(dex, method, code, bytecode, instr_d):
             cur = types[instr.pos]
             itype = type(instr)
             if itype in FUNCS:
-                after = FUNCS[itype](dex, instr, cur, cur)
+                after = FUNCS[itype](dex, instr, cur)
             elif itype in CONTROL_FLOW_OPS:
                 # control flow - none of these are in FUNCS
                 result = after = after2 = cur
