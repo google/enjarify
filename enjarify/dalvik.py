@@ -16,7 +16,8 @@ from . import dalvikformats
 from . import util
 
 class DalvikInstruction:
-    def __init__(self, pos, newpos, opcode, args):
+    def __init__(self, type_, pos, newpos, opcode, args):
+        self.type = type_
         self.pos = pos
         self.pos2 = newpos
         self.opcode = opcode
@@ -27,62 +28,66 @@ class DalvikInstruction:
         self.fillarrdata = None
         self.switchdata = None
 
-class Nop(DalvikInstruction): pass
-class Move(DalvikInstruction): pass
-class MoveWide(DalvikInstruction): pass
-class MoveResult(DalvikInstruction): pass
-class Return(DalvikInstruction): pass
-class Const32(DalvikInstruction): pass
-class Const64(DalvikInstruction): pass
-class ConstString(DalvikInstruction): pass
-class ConstClass(DalvikInstruction): pass
-class MonitorEnter(DalvikInstruction): pass
-class MonitorExit(DalvikInstruction): pass
-class CheckCast(DalvikInstruction): pass
-class InstanceOf(DalvikInstruction): pass
-class ArrayLen(DalvikInstruction): pass
-class NewInstance(DalvikInstruction): pass
-class NewArray(DalvikInstruction): pass
-class FilledNewArray(DalvikInstruction): pass
-class FillArrayData(DalvikInstruction): pass
-class Throw(DalvikInstruction): pass
-class Goto(DalvikInstruction): pass
-class Switch(DalvikInstruction): pass
-class Cmp(DalvikInstruction): pass
-class If(DalvikInstruction): pass
-class IfZ(DalvikInstruction): pass
+_it = iter(range(999))
+Nop = next(_it)
+Move = next(_it)
+MoveWide = next(_it)
+MoveResult = next(_it)
+Return = next(_it)
+Const32 = next(_it)
+Const64 = next(_it)
+ConstString = next(_it)
+ConstClass = next(_it)
+MonitorEnter = next(_it)
+MonitorExit = next(_it)
+CheckCast = next(_it)
+InstanceOf = next(_it)
+ArrayLen = next(_it)
+NewInstance = next(_it)
+NewArray = next(_it)
+FilledNewArray = next(_it)
+FillArrayData = next(_it)
+Throw = next(_it)
+Goto = next(_it)
+Switch = next(_it)
+Cmp = next(_it)
+If = next(_it)
+IfZ = next(_it)
 
-class ArrayGet(DalvikInstruction): pass
-class ArrayPut(DalvikInstruction): pass
-class InstanceGet(DalvikInstruction): pass
-class InstancePut(DalvikInstruction): pass
-class StaticGet(DalvikInstruction): pass
-class StaticPut(DalvikInstruction): pass
+ArrayGet = next(_it)
+ArrayPut = next(_it)
+InstanceGet = next(_it)
+InstancePut = next(_it)
+StaticGet = next(_it)
+StaticPut = next(_it)
 
-class Invoke(DalvikInstruction): pass
-class InvokeVirtual(Invoke): pass
-class InvokeSuper(Invoke): pass
-class InvokeDirect(Invoke): pass
-class InvokeStatic(Invoke): pass
-class InvokeInterface(Invoke): pass
+# Invoke = next(_it)
+InvokeVirtual = next(_it)
+InvokeSuper = next(_it)
+InvokeDirect = next(_it)
+InvokeStatic = next(_it)
+InvokeInterface = next(_it)
 
 # actual ops for these are defined in jvm/mathops.py
-class UnaryOp(DalvikInstruction): pass
-class BinaryOp(DalvikInstruction): pass
-class BinaryOpConst(DalvikInstruction): pass
+UnaryOp = next(_it)
+BinaryOp = next(_it)
+BinaryOpConst = next(_it)
+
+INVOKE_TYPES = InvokeVirtual, InvokeSuper, InvokeDirect, InvokeStatic, InvokeInterface
 
 # instructions which Dalvik considers to throw
-THROW_TYPES = ConstString, ConstClass, MonitorEnter, MonitorExit, CheckCast, InstanceOf, ArrayLen, NewArray, NewInstance, FilledNewArray, FillArrayData, Throw, ArrayGet, ArrayPut, InstanceGet, InstancePut, StaticGet, StaticPut, Invoke, BinaryOp, BinaryOpConst # last two only if it is int/long div or rem
+THROW_TYPES = INVOKE_TYPES + (ConstString, ConstClass, MonitorEnter, MonitorExit, CheckCast, InstanceOf, ArrayLen, NewArray, NewInstance, FilledNewArray, FillArrayData, Throw, ArrayGet, ArrayPut, InstanceGet, InstancePut, StaticGet, StaticPut, BinaryOp, BinaryOpConst)
+# last two only if it is int/long div or rem
 
 # ignore the possiblity of linkage errors (i.e. constants and instanceof can't throw)
 # in theory MonitorExit can't throw either due to the structured locking checks, but these are broken and work inconsistently
-PRUNED_THROW_TYPES = MonitorEnter, MonitorExit, CheckCast, ArrayLen, NewArray, NewInstance, FilledNewArray, FillArrayData, Throw, ArrayGet, ArrayPut, InstanceGet, InstancePut, StaticGet, StaticPut, Invoke, BinaryOp, BinaryOpConst
+PRUNED_THROW_TYPES = INVOKE_TYPES + (MonitorEnter, MonitorExit, CheckCast, ArrayLen, NewArray, NewInstance, FilledNewArray, FillArrayData, Throw, ArrayGet, ArrayPut, InstanceGet, InstancePut, StaticGet, StaticPut, BinaryOp, BinaryOpConst)
 
 OPCODES = util.keysToRanges({
     0x00: Nop,
     0x01: Move,
     0x04: MoveWide,
-    0x07 : Move,
+    0x07: Move,
     0x0a: MoveResult,
     0x0e: Return,
     0x12: Const32,
@@ -170,7 +175,7 @@ def parseInstruction(dex, insns_start_pos, shorts, pos):
         fillarrdata = width, [func() for _ in range(size)]
 
     # warning, this must go below the special data handling that calculates newpos
-    instruction = OPCODES[opcode](pos, newpos, opcode, args)
+    instruction = DalvikInstruction(OPCODES[opcode], pos, newpos, opcode, args)
     instruction.fillarrdata = fillarrdata
     instruction.switchdata = switchdata
 
@@ -185,13 +190,13 @@ def parseBytecode(dex, insns_start_pos, shorts, catch_addrs):
 
     # Fill in data for move-result
     for instr, instr2 in zip(ops, ops[1:]):
-        if not isinstance(instr2, MoveResult):
+        if not instr2.type == MoveResult:
             continue
-        if isinstance(instr, Invoke):
+        if instr.type in INVOKE_TYPES:
             called_id = dex.method_id(instr.args[0])
             if called_id.return_type != b'V':
                 instr2.prev_result = called_id.return_type
-        elif isinstance(instr, FilledNewArray):
+        elif instr.type == FilledNewArray:
             instr2.prev_result = dex.type(instr.args[0])
         elif instr2.pos in catch_addrs:
             instr2.prev_result = b'Ljava/lang/Throwable;'
@@ -200,12 +205,12 @@ def parseBytecode(dex, insns_start_pos, shorts, catch_addrs):
     # Fill in implicit cast data
     for i, instr in enumerate(ops):
         if instr.opcode in (0x38, 0x39): # if-eqz, if-nez
-            if i > 0 and isinstance(ops[i-1], InstanceOf):
+            if i > 0 and ops[i-1].type == InstanceOf:
                 prev = ops[i-1]
                 desc_ind = prev.args[2]
                 regs = {prev.args[1]}
 
-                if i > 1 and isinstance(ops[i-2], Move):
+                if i > 1 and ops[i-2].type == Move:
                     prev2 = ops[i-2]
                     if prev2.args[0] == prev.args[1]:
                         regs.add(prev2.args[1])

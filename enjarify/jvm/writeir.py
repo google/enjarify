@@ -358,7 +358,7 @@ def visitFilledNewArray(method, dex, instr_d, type_data, block, instr):
     op = _arrStoreOps.get(elet, AASTORE)
     cbs = [partial(block.load, reg, st) for reg in regs]
     # if not followed by move-result, don't leave it on the stack
-    mustpop = not isinstance(instr_d.get(instr.pos2), dalvik.MoveResult)
+    mustpop = instr_d.get(instr.pos2).type != dalvik.MoveResult
     block.fillarraysub(op, cbs, pop=mustpop)
 
 def visitFillArrayData(method, dex, instr_d, type_data, block, instr):
@@ -478,7 +478,7 @@ def visitStaticPut(method, dex, instr_d, type_data, block, instr):
     block.u8u16(PUTSTATIC, block.pool.field(field_id.triple()))
 
 def visitInvoke(method, dex, instr_d, type_data, block, instr):
-    isstatic = isinstance(instr, dalvik.InvokeStatic)
+    isstatic = instr.type == dalvik.InvokeStatic
 
     called_id = dex.method_id(instr.args[0])
     sts = scalars.paramTypes(called_id, static=isstatic)
@@ -494,15 +494,15 @@ def visitInvoke(method, dex, instr_d, type_data, block, instr):
         dalvik.InvokeDirect: INVOKESPECIAL,
         dalvik.InvokeStatic: INVOKESTATIC,
         dalvik.InvokeInterface: INVOKEINTERFACE,
-    }[type(instr)]
+    }[instr.type]
 
-    if isinstance(instr, dalvik.InvokeInterface):
+    if instr.type == dalvik.InvokeInterface:
         block.u8u16u8u8(op, block.pool.imethod(called_id.triple()), len(descs), 0)
     else:
         block.u8u16(op, block.pool.method(called_id.triple()))
 
     # check if we need to pop result instead of leaving on stack
-    if not isinstance(instr_d.get(instr.pos2), dalvik.MoveResult):
+    if instr_d.get(instr.pos2).type != dalvik.MoveResult:
         if called_id.return_type != b'V':
             st = scalars.fromDesc(called_id.return_type)
             block.u8(POP2 if scalars.iswide(st) else POP)
@@ -599,7 +599,7 @@ def writeBytecode(pool, method, opts):
             continue
         type_data = types[instr.pos]
         block = writer.createBlock(instr)
-        VISIT_FUNCS[type(instr)](method, dex, instr_d, type_data, block, instr)
+        VISIT_FUNCS[instr.type](method, dex, instr_d, type_data, block, instr)
 
     for instr in sorted(all_handlers, key=lambda instr: instr.pos):
         assert(all_handlers[instr])
@@ -612,7 +612,7 @@ def writeBytecode(pool, method, opts):
 
         for ctype, handler_pos in all_handlers[instr]:
             # If handler doesn't use the caught exception, we need to redirect to a pop instead
-            if not isinstance(instr_d.get(handler_pos), dalvik.MoveResult):
+            if instr_d.get(handler_pos).type != dalvik.MoveResult:
                 target = writer.addExceptionRedirect(handler_pos)
             else:
                 target = writer.labels[handler_pos]

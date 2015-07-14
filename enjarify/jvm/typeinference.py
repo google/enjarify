@@ -105,13 +105,13 @@ _MATH_THROW_OPS = [jvmops.IDIV, jvmops.IREM, jvmops.LDIV, jvmops.LREM]
 def pruneHandlers(all_handlers):
     result = collections.defaultdict(list)
     for instr, handlers in all_handlers.items():
-        if not isinstance(instr, dalvik.PRUNED_THROW_TYPES):
+        if not instr.type in dalvik.PRUNED_THROW_TYPES:
             continue
         # if math op, make sure it is int div/rem
-        if isinstance(instr, dalvik.BinaryOp):
+        if instr.type == dalvik.BinaryOp:
             if mathops.BINARY[instr.opcode][0] not in _MATH_THROW_OPS:
                 continue
-        elif isinstance(instr, dalvik.BinaryOpConst):
+        elif instr.type == dalvik.BinaryOpConst:
             if mathops.BINARY_LIT[instr.opcode] not in _MATH_THROW_OPS:
                 continue
 
@@ -245,7 +245,7 @@ def doInference(dex, method, code, bytecode, instr_d):
 
             dirty.remove(instr.pos)
             cur = types[instr.pos]
-            itype = type(instr)
+            itype = instr.type
             if itype in FUNCS:
                 after = FUNCS[itype](dex, instr, cur)
             elif itype in CONTROL_FLOW_OPS:
@@ -263,13 +263,13 @@ def doInference(dex, method, code, bytecode, instr_d):
                     else:
                         after = result
 
-                if isinstance(instr, dalvik.Goto):
+                if instr.type == dalvik.Goto:
                     doMerge(instr.args[0], after2)
-                elif isinstance(instr, dalvik.If):
+                elif instr.type == dalvik.If:
                     doMerge(instr.args[2], after2)
-                elif isinstance(instr, dalvik.IfZ):
+                elif instr.type == dalvik.IfZ:
                     doMerge(instr.args[1], after2)
-                elif isinstance(instr, dalvik.Switch):
+                elif instr.type == dalvik.Switch:
                     switchdata = instr_d[instr.args[1]].switchdata
                     for offset in switchdata.values():
                         target = (instr.pos + offset) % (1<<32)
@@ -278,7 +278,7 @@ def doInference(dex, method, code, bytecode, instr_d):
                 after = cur
 
             # these instructions don't fallthrough
-            if not isinstance(instr, (dalvik.Return, dalvik.Throw, dalvik.Goto)):
+            if instr.type not in (dalvik.Return, dalvik.Throw, dalvik.Goto):
                 doMerge(instr.pos2, after)
 
             # exception handlers
