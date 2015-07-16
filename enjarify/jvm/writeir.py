@@ -268,10 +268,6 @@ class IRWriter:
 def visitNop(method, dex, instr_d, type_data, block, instr):
     pass
 
-def visitMoveResult(method, dex, instr_d, type_data, block, instr):
-    st = scalars.fromDesc(instr.prev_result)
-    block.store(instr.args[0], st)
-
 def visitMove(method, dex, instr_d, type_data, block, instr):
     for st in (scalars.INT, scalars.OBJ, scalars.FLOAT):
         if st & type_data.prims[instr.args[1]]:
@@ -283,6 +279,10 @@ def visitMoveWide(method, dex, instr_d, type_data, block, instr):
         if st & type_data.prims[instr.args[1]]:
             block.load(instr.args[1], st)
             block.store(instr.args[0], st)
+
+def visitMoveResult(method, dex, instr_d, type_data, block, instr):
+    st = scalars.fromDesc(instr.prev_result)
+    block.store(instr.args[0], st)
 
 def visitReturn(method, dex, instr_d, type_data, block, instr):
     if method.id.return_type == b'V':
