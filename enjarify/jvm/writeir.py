@@ -59,9 +59,9 @@ class IRBlock:
 
     def ldc(self, index):
         if index < 256:
-            self.add(ir.OtherConstant(bytecode=struct.pack('>BB', LDC, index)))
+            self.u8u8(LDC, index)
         else:
-            self.add(ir.OtherConstant(bytecode=struct.pack('>BH', LDC_W, index)))
+            self.u8u16(LDC_W, index)
 
     def load(self, reg, stype, desc=None, clsname=None):
         # if we know the register to be 0/null, don't bother loading
@@ -116,7 +116,7 @@ class IRBlock:
             self.add(ir.PrimConstant(stype, val, pool=pool))
 
     def const_null(self):
-        self.add(ir.OtherConstant(bytecode=bytes([ACONST_NULL])))
+        self.u8(ACONST_NULL)
 
     def fillarraysub(self, op, cbs, pop=True):
         gen = stack.genDups(len(cbs), 0 if pop else 1)
@@ -129,9 +129,6 @@ class IRBlock:
         # may need to pop at end
         for bytecode in next(gen):
             self._other(bytecode)
-
-    def new(self, desc):
-        self.u8u16(NEW, self.pool.class_(desc))
 
     def newarray(self, desc):
         if desc in _newArrayCodes:
@@ -299,7 +296,7 @@ def visitConst32(method, dex, instr_d, type_data, block, instr):
     block.const(val, scalars.FLOAT)
     block.store(instr.args[0], scalars.FLOAT)
     if not val:
-        block.const(val, scalars.OBJ)
+        block.const_null()
         block.store(instr.args[0], scalars.OBJ)
 
 def visitConst64(method, dex, instr_d, type_data, block, instr):
@@ -342,7 +339,7 @@ def visitArrayLen(method, dex, instr_d, type_data, block, instr):
     block.store(instr.args[0], scalars.INT)
 
 def visitNewInstance(method, dex, instr_d, type_data, block, instr):
-    block.new(dex.clsType(instr.args[1]))
+    block.u8u16(NEW, block.pool.class_(dex.clsType(instr.args[1])))
     block.store(instr.args[0], scalars.OBJ)
 
 def visitNewArray(method, dex, instr_d, type_data, block, instr):
