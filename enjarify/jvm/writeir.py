@@ -58,9 +58,9 @@ class IRBlock:
 
     def ldc(self, index):
         if index < 256:
-            self.u8u8(LDC, index)
+            self.add(ir.OtherConstant(bytecode=bytes([LDC, index])))
         else:
-            self.u8u16(LDC_W, index)
+            self.add(ir.OtherConstant(bytecode=struct.pack('>BH', LDC_W, index)))
 
     def load(self, reg, stype, desc=None, clsname=None):
         # if we know the register to be 0/null, don't bother loading
@@ -115,7 +115,7 @@ class IRBlock:
             self.add(ir.PrimConstant(stype, val, pool=pool))
 
     def const_null(self):
-        self.u8(ACONST_NULL)
+        self.add(ir.OtherConstant(bytecode=bytes([ACONST_NULL])))
 
     def fillarraysub(self, op, cbs, pop=True):
         gen = stack.genDups(len(cbs), 0 if pop else 1)
