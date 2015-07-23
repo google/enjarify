@@ -66,9 +66,6 @@ class Writer:
         self.strings = []
         self.len = 0
 
-    def _fill_placeholder(self, i, fmt, arg):
-        self.strings[i] = struct.pack(fmt, arg)
-
     def write(self, s):
         if isinstance(s, Writer):
             self.strings.extend(s.strings)
