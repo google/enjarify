@@ -41,7 +41,6 @@ class IRBlock:
         self.delay_consts = parent.opts.delay_consts
         self.pos = pos
         self.instructions = [ir.Label(pos)]
-        self.except_labels = None
 
     def add(self, jvm_instr):
         self.instructions.append(jvm_instr)
@@ -161,22 +160,20 @@ class IRBlock:
         else:
             self.goto(default)
 
-    def addExceptLabels(self):
-        if self.except_labels is None:
-            s_ind = 0
-            e_ind = len(self.instructions)
-            # assume only Other instructions can throw
-            while s_ind < e_ind and not isinstance(self.instructions[s_ind], ir.Other):
-                s_ind += 1
-            while s_ind < e_ind and not isinstance(self.instructions[e_ind-1], ir.Other):
-                e_ind -= 1
+    def generateExceptLabels(self):
+        s_ind = 0
+        e_ind = len(self.instructions)
+        # assume only Other instructions can throw
+        while s_ind < e_ind and not isinstance(self.instructions[s_ind], ir.Other):
+            s_ind += 1
+        while s_ind < e_ind and not isinstance(self.instructions[e_ind-1], ir.Other):
+            e_ind -= 1
 
-            assert(s_ind < e_ind)
-            if s_ind < e_ind:
-                self.except_labels = start_lbl, end_lbl = ir.Label(), ir.Label()
-                self.instructions.insert(s_ind, start_lbl)
-                self.instructions.insert(e_ind+1, end_lbl)
-        return self.except_labels
+        assert(s_ind < e_ind)
+        start_lbl, end_lbl = ir.Label(), ir.Label()
+        self.instructions.insert(s_ind, start_lbl)
+        self.instructions.insert(e_ind+1, end_lbl)
+        return start_lbl, end_lbl
 
 class IRWriter:
     def __init__(self, pool, method, types, opts):
@@ -603,7 +600,7 @@ def writeBytecode(pool, method, opts):
         if instr.pos not in types: # skip unreachable instructions
             continue
 
-        start, end = writer.iblocks[instr.pos].addExceptLabels()
+        start, end = writer.iblocks[instr.pos].generateExceptLabels()
         writer.except_starts.add(start)
         writer.except_ends.add(end)
 
