@@ -45,8 +45,8 @@ def optimizeJumps(irdata):
         posd, _ = _calcMinimumPositions(instrs)
 
         for ins in jump_instrs:
-            if ins.min < ins.max:
-                done = done and not ins.widenIfNecessary(irdata.labels, posd)
+            if ins.min < ins.max and ins.widenIfNecessary(irdata.labels, posd):
+                done = False
         if done:
             break
 
