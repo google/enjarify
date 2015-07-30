@@ -60,8 +60,6 @@ def createBytecode(irdata):
 
     parts = []
     for ins in instrs:
-        pos = posd[ins]
-
         if isinstance(ins, (ir.LazyJumpBase, ir.Switch)):
             ins.calcBytecode(posd, irdata.labels)
         parts.append(ins.bytecode)
