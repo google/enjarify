@@ -178,11 +178,13 @@ class Switch(JvmInstruction):
         assert(jumps)
         self.low = min(jumps)
         self.high = max(jumps)
-        self.table_size = self.high - self.low + 1
-        self.jump_size = len(jumps)
-        self.nopad_size = 9 + min(8*self.jump_size, 4*(self.table_size+1))
-        self.istable = 8*self.jump_size > 4*(self.table_size+1)
 
+        table_count = self.high - self.low + 1
+        table_size =  4*(table_count+1)
+        jump_size = 8*len(jumps)
+
+        self.istable = jump_size > table_size
+        self.nopad_size = 9 + (table_size if self.istable else jump_size)
         self.max = self.nopad_size + 3
 
     def fallsthrough(self): return False
