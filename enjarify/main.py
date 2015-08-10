@@ -68,6 +68,14 @@ def main():
     else:
         dexs.append(read(args.inputfile))
 
+    # Exclusive mode requires 3.3+, so provide helpful error in this case
+    if not args.force:
+        try:
+            FileExistsError
+        except NameError:
+            print('Overwrite protection requires Python 3.3+. Either pass -f or --force, or upgrade to a more recent version of Python. If you are using Pypy3 2.4, you need to switch to a nightly build or build from source. Or just pass -f.')
+            return
+
     # Might as well open the output file early so we can detect existing file error
     # before going to the trouble of translating everything
     outname = args.output or args.inputfile.rpartition('/')[-1].rpartition('.')[0] + '-enjarify.jar'
