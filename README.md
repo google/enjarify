@@ -19,7 +19,7 @@ For convenience, a wrapper shell script is provided, enjarify.sh. This will try 
 
 #### Windows
 
-A wrapper batch script, enjarify.bat, is provided. To be able to call it from anywhere, just add the root directory of the repository to your PATH. The batch script will always invoke python3 as interperter. If you want to use pypy, just edit the script.
+A wrapper batch script, enjarify.bat, is provided. To be able to call it from anywhere, just add the root directory of the repository to your PATH. The batch script will always invoke python3 as interpreter. If you want to use pypy, just edit the script.
 
 #### Usage
 
