@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import zipfile, traceback, argparse
+from os import path
 
 from . import parsedex
 from .jvm import writeclass
@@ -79,12 +80,14 @@ def main():
     # Might as well open the output file early so we can detect existing file error
     # before going to the trouble of translating everything
     outname = args.output or args.inputfile.rpartition('/')[-1].rpartition('.')[0] + '-enjarify.jar'
-    try:
-        outfile = open(outname, mode=('wb' if args.force else 'xb'))
-    except FileExistsError:
+    if args.force:
+        outfile = open(outname, mode='wb')
+    elif path.exists(outname):
         print('Error, output file already exists and --force was not specified.')
         print('To overwrite the output file, pass -f or --force.')
         return
+    else:
+        outfile = open(outname, mode='wb')
 
     opts = options.NONE if args.fast else options.PRETTY
     classes, errors = {}, {}
