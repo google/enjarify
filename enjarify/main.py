@@ -46,10 +46,10 @@ def translate(data, opts, classes=None, errors=None):
 
 def writeToJar(fname, classes):
     with zipfile.ZipFile(fname, 'w') as out:
-        for unicode_name, data in classes.items():
+        for unicode_name, data in sorted(classes.items()):
             # Don't bother compressing small files
             compress_type = zipfile.ZIP_DEFLATED if len(data) > 10000 else zipfile.ZIP_STORED
-            out.writestr(unicode_name, data, compress_type=compress_type)
+            out.writestr(zipfile.ZipInfo(unicode_name), data, compress_type=compress_type)
 
 def main():
     parser = argparse.ArgumentParser(prog='enjarify', description='Translates Dalvik bytecode (.dex or .apk) to Java bytecode (.jar)')
