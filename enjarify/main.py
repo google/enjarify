@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import zipfile, traceback, argparse
+import zipfile, traceback, argparse, collections
 
 from . import parsedex
 from .jvm import writeclass
@@ -46,7 +46,7 @@ def translate(data, opts, classes=None, errors=None):
 
 def writeToJar(fname, classes):
     with zipfile.ZipFile(fname, 'w') as out:
-        for unicode_name, data in sorted(classes.items()):
+        for unicode_name, data in classes.items():
             # Don't bother compressing small files
             compress_type = zipfile.ZIP_DEFLATED if len(data) > 10000 else zipfile.ZIP_STORED
             out.writestr(zipfile.ZipInfo(unicode_name), data, compress_type=compress_type)
@@ -87,7 +87,8 @@ def main():
         return
 
     opts = options.NONE if args.fast else options.PRETTY
-    classes, errors = {}, {}
+    classes = collections.OrderedDict()
+    errors = {}
     for data in dexs:
         translate(data, opts=opts, classes=classes, errors=errors)
     writeToJar(outfile, classes)
