@@ -1,0 +1,6 @@
+.gitattributes export-ignore
+.gitignore export-ignore
+tests/** export-ignore
+
+# Exclude source generators, since the results are included in releases instead
+**/gen*.py export-ignore
