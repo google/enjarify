@@ -25,8 +25,8 @@ def read(fname, mode='rb'):
 
 def translate(data, opts, classes=None, errors=None):
     dex = parsedex.DexFile(data)
-    classes = {} if classes is None else classes
-    errors = {} if errors is None else errors
+    classes = collections.OrderedDict() if classes is None else classes
+    errors = collections.OrderedDict() if errors is None else errors
 
     for cls in dex.classes:
         unicode_name = decode(cls.name) + '.class'
@@ -88,7 +88,7 @@ def main():
 
     opts = options.NONE if args.fast else options.PRETTY
     classes = collections.OrderedDict()
-    errors = {}
+    errors = collections.OrderedDict()
     for data in dexs:
         translate(data, opts=opts, classes=classes, errors=errors)
     writeToJar(outfile, classes)
