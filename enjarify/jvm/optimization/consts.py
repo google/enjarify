@@ -52,7 +52,10 @@ def allocateRequiredConstants(pool, long_irs):
     # if we have enough space for all required constants, preferentially allocate
     # most commonly used constants to first 255 slots
     if pool.space() >= len(narrow_pairs) + 2*len(wide_pairs) and pool.lowspace() > 0:
-        for key, count in narrow_pairs.most_common(pool.lowspace()):
+        # We can't use Counter.most_common here because it is nondeterminstic in
+        # the case of ties.
+        most_common = sorted(narrow_pairs, key=lambda p:(-narrow_pairs[p], p))
+        for key in most_common[:pool.lowspace()]:
             pool.insertDirectly(key, True)
             del narrow_pairs[key]
 
@@ -65,7 +68,6 @@ def allocateRequiredConstants(pool, long_irs):
     # sort by score
     narrowq = sorted(narrow_pairs, key=lambda p:(scores[p], p))
     wideq = sorted(wide_pairs, key=lambda p:(scores[p], p))
-
     while pool.space() >= 1 and (narrowq or wideq):
         if not narrowq and pool.space() < 2:
             break
