@@ -4,3 +4,4 @@
 out.jar
 .coverage
 htmlcov
+ignore*
