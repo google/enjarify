@@ -14,7 +14,7 @@
 
 # The first SIZE elements are stored directly, the rest are stored in one of SPLIT subtrees
 SIZE = 16
-SPLIT = 2
+SPLIT = 16
 
 # This class represents a list as a persistent n-ary tree
 # This has much slower access and updates than a real list but has the advantage
