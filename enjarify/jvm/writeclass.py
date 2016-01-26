@@ -109,7 +109,7 @@ def toClassFile(cls, opts):
     try:
         pool, rest_stream = classFileAfterPool(cls, opts=opts)
     except error.ClassfileLimitExceeded:
-        print('Retrying {} with optimization enabled'.format(cls.name))
+        # print('Retrying {} with optimization enabled'.format(cls.name))
         pool, rest_stream = classFileAfterPool(cls, opts=options.ALL)
 
     # write constant pool

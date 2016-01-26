@@ -2,3 +2,4 @@
 .gitignore export-ignore
 tests/** export-ignore
 enjarify/runtests.py export-ignore
+enjarify/hashtests.py export-ignore
