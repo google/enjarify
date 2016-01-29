@@ -195,20 +195,20 @@ class Switch(JvmInstruction):
         offset = posd[labels[self.default]] - pos
         pad = (-pos-1) % 4
 
-        parts = []
+        bytecode = bytearray()
         if self.istable:
-            parts.append(bytes([TABLESWITCH] + [0]*pad))
-            parts.append(struct.pack('>iii', offset, self.low, self.high))
+            bytecode += bytes([TABLESWITCH] + [0]*pad)
+            bytecode += struct.pack('>iii', offset, self.low, self.high)
             for k in range(self.low, self.high + 1):
                 target = self.jumps.get(k, self.default)
-                parts.append(struct.pack('>i', posd[labels[target]] - pos))
+                bytecode += struct.pack('>i', posd[labels[target]] - pos)
         else:
-            parts.append(bytes([LOOKUPSWITCH] + [0]*pad))
-            parts.append(struct.pack('>iI', offset, len(self.jumps)))
+            bytecode += bytes([LOOKUPSWITCH] + [0]*pad)
+            bytecode += struct.pack('>iI', offset, len(self.jumps))
             for k, target in sorted(self.jumps.items()):
                 offset = posd[labels[target]] - pos
-                parts.append(struct.pack('>ii', k, offset))
-        self.bytecode = b''.join(parts)
+                bytecode += struct.pack('>ii', k, offset)
+        self.bytecode = bytes(bytecode)
 
 _return_or_throw_bytecodes = {bytes([op]) for op in range(IRETURN, RETURN+1) }
 _return_or_throw_bytecodes.add(bytes([ATHROW]))

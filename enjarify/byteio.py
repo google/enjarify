@@ -63,16 +63,10 @@ class Reader:
 
 class Writer:
     def __init__(self):
-        self.strings = []
-        self.len = 0
+        self.buf = bytearray()
 
     def write(self, s):
-        if isinstance(s, Writer):
-            self.strings.extend(s.strings)
-            self.len += s.len
-        else:
-            self.strings.append(s)
-            self.len += len(s)
+        self.buf += s
 
     def _pack(self, fmt, arg):
         return self.write(struct.pack(fmt, arg))
@@ -83,4 +77,4 @@ class Writer:
     def u64(self, x): return self._pack('>Q', x)
 
     def toBytes(self):
-        return b''.join(self.strings)
+        return bytes(self.buf)

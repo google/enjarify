@@ -50,9 +50,10 @@ def writeMethod(pool, stream, method, code_attr_data):
     stream.u16(pool.utf8(method.id.desc))
 
     if code_attr_data is not None:
+        code_attr_data = code_attr_data.toBytes()
         stream.u16(1)
         stream.u16(pool.utf8(b"Code"))
-        stream.u32(code_attr_data.len)
+        stream.u32(len(code_attr_data))
         stream.write(code_attr_data)
     else:
         stream.u16(0) # no attributes
@@ -115,5 +116,5 @@ def toClassFile(cls, opts):
     # write constant pool
     pool.write(stream)
     # write rest of file
-    stream.write(rest_stream)
+    stream.write(rest_stream.toBytes())
     return stream.toBytes()

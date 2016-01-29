@@ -86,17 +86,17 @@ def _calcFloat(x):
 
     ex_combine_op = FDIV if exponent < 0 else FMUL
     exponent = abs(exponent)
-    exponent_parts = []
+    exponent_parts = bytearray()
     while exponent >= 63: # max 2 iterations since -149 <= exp <= 104
-        exponent_parts.append(bytes([LCONST_1, ICONST_M1, LSHL, L2F, ex_combine_op]))
+        exponent_parts.extend([LCONST_1, ICONST_M1, LSHL, L2F, ex_combine_op])
         mantissa = -mantissa
         exponent -= 63
 
     if exponent > 0:
-        exponent_parts.append(bytes([LCONST_1]))
-        exponent_parts.append(_calcInt(exponent))
-        exponent_parts.append(bytes([LSHL, L2F, ex_combine_op]))
-    return _calcInt(mantissa) + bytes([I2F]) + b''.join(exponent_parts)
+        exponent_parts.append(LCONST_1)
+        exponent_parts.extend(_calcInt(exponent))
+        exponent_parts.extend([LSHL, L2F, ex_combine_op])
+    return _calcInt(mantissa) + bytes([I2F]) + exponent_parts
 
 def _calcDouble(x):
     assert(x == normalizeDouble(x))
@@ -117,16 +117,16 @@ def _calcDouble(x):
         mantissa = -mantissa
 
     abs_exponent = abs(exponent)
-    exponent_parts = []
+    exponent_parts = bytearray()
 
     part63 = abs_exponent // 63
     if part63: #create *63 part of exponent by repeated squaring
         # use 2^-x instead of calculating 2^x and dividing to avoid overflow in
         # case we need 2^-1071
         if exponent < 0: # -2^-63
-            exponent_parts.append(bytes([DCONST_1, LCONST_1, ICONST_M1, LSHL, L2D, DDIV]))
+            exponent_parts.extend([DCONST_1, LCONST_1, ICONST_M1, LSHL, L2D, DDIV])
         else: # -2^63
-            exponent_parts.append(bytes([LCONST_1, ICONST_M1, LSHL, L2D]))
+            exponent_parts.extend([LCONST_1, ICONST_M1, LSHL, L2D])
         # adjust sign of mantissa for odd powers since we're actually using -2^63 rather than positive
         if part63 & 1:
             mantissa = -mantissa
@@ -134,27 +134,27 @@ def _calcDouble(x):
         last_needed = part63 & 1
         stack = [1] # Not actually required to compute the results - it's just used for a sanity check
         for bi in range(1, part63.bit_length()):
-            exponent_parts.append(bytes([DUP2]))
+            exponent_parts.append(DUP2)
             stack.append(stack[-1])
             if last_needed:
-                exponent_parts.append(bytes([DUP2]))
+                exponent_parts.append(DUP2)
                 stack.append(stack[-1])
-            exponent_parts.append(bytes([DMUL]))
+            exponent_parts.append(DMUL)
             stack.append(stack.pop() + stack.pop())
             last_needed = part63 & (1<<bi)
 
         assert(sum(stack) == part63 and len(stack) == bin(part63).count('1'))
-        exponent_parts.append(bytes([DMUL] * bin(part63).count('1')))
+        exponent_parts.extend([DMUL] * bin(part63).count('1'))
 
     # now handle the rest
     rest = abs_exponent % 63
     if rest:
-        exponent_parts.append(bytes([LCONST_1]))
-        exponent_parts.append(_calcInt(rest))
-        exponent_parts.append(bytes([LSHL, L2D]))
-        exponent_parts.append(bytes([DDIV if exponent < 0 else DMUL]))
+        exponent_parts.append(LCONST_1)
+        exponent_parts.extend(_calcInt(rest))
+        exponent_parts.extend([LSHL, L2D])
+        exponent_parts.append(DDIV if exponent < 0 else DMUL)
 
-    return _calcLong(mantissa) + bytes([L2D]) + b''.join(exponent_parts)
+    return _calcLong(mantissa) + bytes([L2D]) + exponent_parts
 
 def calcInt(x): return _calcInt(s32(x))
 def calcLong(x): return _calcLong(s64(x))

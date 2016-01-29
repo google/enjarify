@@ -58,13 +58,11 @@ def createBytecode(irdata):
     instrs = irdata.flat_instructions
     posd, end_pos = _calcMinimumPositions(instrs)
 
-    parts = []
+    bytecode = bytearray()
     for ins in instrs:
         if isinstance(ins, (ir.LazyJumpBase, ir.Switch)):
             ins.calcBytecode(posd, irdata.labels)
-        parts.append(ins.bytecode)
-
-    bytecode = b''.join(parts)
+        bytecode += ins.bytecode
     assert(len(bytecode) == end_pos)
 
     prev_instr_map = dict(zip(instrs[1:], instrs))
@@ -88,4 +86,4 @@ def createBytecode(irdata):
             print('Skipping zero width exception!')
             assert(0)
 
-    return bytecode, packed_excepts
+    return bytes(bytecode), packed_excepts
