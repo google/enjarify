@@ -1,7 +1,7 @@
 *.pyc
 *.pyo
 
-out.jar
+*.jar
 .coverage
 htmlcov
 ignore*
