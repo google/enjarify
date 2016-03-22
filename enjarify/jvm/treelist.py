@@ -21,7 +21,27 @@ SPLIT = 16
 # of sharing memory with previous versions of the list when only a few elements
 # are changed. See http://en.wikipedia.org/wiki/Persistent_data_structure#Trees
 # Also, default values are not stored, so this is good for sparse arrays
-class ImmutableTreeList:
+class TreeList:
+    def __init__(self, default, func, data=None):
+        self.default = default
+        self.func = func
+        self.data = data or _TreeListSub(default)
+
+    def __getitem__(self, i):
+        return self.data[i]
+
+    def __setitem__(self, i, val):
+        self.data = self.data.set(i, val)
+
+    def copy(self):
+        return TreeList(self.default, self.func, self.data)
+
+    def merge(self, other):
+        assert self.func is other.func
+        self.data = _TreeListSub.merge(self.data, other.data, self.func)
+
+
+class _TreeListSub:
     def __init__(self, default, direct=None, children=None):
         self.default = default
         if direct is None:
@@ -52,7 +72,7 @@ class ImmutableTreeList:
 
             temp = self.direct[:]
             temp[i] = val
-            return ImmutableTreeList(self.default, temp, self.children)
+            return _TreeListSub(self.default, temp, self.children)
 
         i -= SIZE
         i, ci = divmod(i, SPLIT)
@@ -61,7 +81,7 @@ class ImmutableTreeList:
         if child is None:
             if val == self.default:
                 return self
-            child = ImmutableTreeList(self.default).set(i, val)
+            child = _TreeListSub(self.default).set(i, val)
         else:
             if val == child[i]:
                 return self
@@ -69,7 +89,7 @@ class ImmutableTreeList:
 
         temp = self.children[:]
         temp[ci] = child
-        return ImmutableTreeList(self.default, self.direct, temp)
+        return _TreeListSub(self.default, self.direct, temp)
 
     @staticmethod
     def merge(left, right, func):
@@ -82,13 +102,13 @@ class ImmutableTreeList:
             left, right = right, left
 
         default = left.default
-        merge = ImmutableTreeList.merge
+        merge = _TreeListSub.merge
         if right is None:
             direct = [func(x, default) for x in left.direct]
             children = [merge(child, None, func) for child in left.children]
             if direct == left.direct and children == left.children:
                 return left
-            return ImmutableTreeList(default, direct, children)
+            return _TreeListSub(default, direct, children)
 
         direct = [func(x, y) for x, y in zip(left.direct, right.direct)]
         children = [merge(c1, c2, func) for c1, c2 in zip(left.children, right.children)]
@@ -96,4 +116,4 @@ class ImmutableTreeList:
             return left
         if direct == right.direct and children == right.children:
             return right
-        return ImmutableTreeList(default, direct, children)
+        return _TreeListSub(default, direct, children)

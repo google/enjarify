@@ -17,7 +17,7 @@ import collections, operator
 from . import arraytypes as arrays
 from . import scalartypes as scalars
 from . import mathops, jvmops
-from .treelist import ImmutableTreeList
+from .treelist import TreeList
 from .. import flags, dalvik
 
 
@@ -46,13 +46,13 @@ class TypeInfo:
         self.arrs = arrs
         self.tainted = tainted
 
-    def _copy(self): return TypeInfo(self.prims, self.arrs, self.tainted)
+    def _copy(self): return TypeInfo(self.prims.copy(), self.arrs.copy(), self.tainted.copy())
     def _get(self, reg): return self.prims[reg], self.arrs[reg], self.tainted[reg]
 
     def _set(self, reg, st, at, taint=False):
-        self.prims = self.prims.set(reg, st)
-        self.arrs = self.arrs.set(reg, at)
-        self.tainted = self.tainted.set(reg, taint)
+        self.prims[reg] = st
+        self.arrs[reg] = at
+        self.tainted[reg] = taint
         return self
 
     def move(self, src, dest, wide):
@@ -78,27 +78,31 @@ class TypeInfo:
         else:
             return self.assign(reg, st, at)
 
+    def isSame(self, other):
+        return (self.prims.data is other.prims.data and
+            self.arrs.data is other.arrs.data and
+            self.tainted.data is other.tainted.data)
+
 def merge(old, new):
-    prims = ImmutableTreeList.merge(old.prims, new.prims, operator.__and__)
-    arrs = ImmutableTreeList.merge(old.arrs, new.arrs, arrays.merge)
-    tainted = ImmutableTreeList.merge(old.tainted, new.tainted, operator.__or__)
-    if prims is old.prims and arrs is old.arrs and tainted is old.tainted:
-        return old
-    return TypeInfo(prims, arrs, tainted)
+    temp = old._copy()
+    temp.prims.merge(new.prims)
+    temp.arrs.merge(new.arrs)
+    temp.tainted.merge(new.tainted)
+    return old if old.isSame(temp) else temp
 
 def fromParams(method, num_regs):
     isstatic = method.access & flags.ACC_STATIC
     full_ptypes = method.id.getSpacedParamTypes(isstatic)
     offset = num_regs - len(full_ptypes)
 
-    prims = ImmutableTreeList(scalars.INVALID)
-    arrs = ImmutableTreeList(arrays.INVALID)
-    tainted = ImmutableTreeList(False)
+    prims = TreeList(scalars.INVALID, operator.__and__)
+    arrs = TreeList(arrays.INVALID, arrays.merge)
+    tainted = TreeList(False, operator.__or__)
 
     for i, desc in enumerate(full_ptypes):
         if desc is not None:
-            prims = prims.set(offset + i, scalars.fromDesc(desc))
-            arrs = arrs.set(offset + i, arrays.fromDesc(desc))
+            prims[offset + i] = scalars.fromDesc(desc)
+            arrs[offset + i] = arrays.fromDesc(desc)
     return TypeInfo(prims, arrs, tainted)
 
 _MATH_THROW_OPS = [jvmops.IDIV, jvmops.IREM, jvmops.LDIV, jvmops.LREM]
