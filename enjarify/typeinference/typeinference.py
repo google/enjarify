@@ -14,10 +14,10 @@
 
 import collections, operator
 
-from . import arraytypes as arrays
-from . import scalartypes as scalars
-from . import mathops, jvmops
-from .treelist import TreeList
+from ..jvm import arraytypes as arrays
+from ..jvm import scalartypes as scalars
+from ..jvm import mathops, jvmops
+from ..treelist import TreeList
 from .. import flags, dalvik
 
 

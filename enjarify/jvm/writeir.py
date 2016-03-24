@@ -20,9 +20,10 @@ from .. import flags, dalvik
 from .jvmops import *
 from . import arraytypes as arrays
 from . import scalartypes as scalars
-from . import typeinference, mathops
+from . import mathops
 from .optimization import stack
 from .. import util
+from ..typeinference import typeinference
 
 # Code for converting dalvik bytecode to intermediate representation
 # effectively this is just Java bytecode instructions with some abstractions for
