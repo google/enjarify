@@ -238,7 +238,6 @@ class DexFile:
             except ValueError:
                 continue
             if i > 0:
-                print("Fixed H array.")
                 break
         assert(self.u16s.itemsize == 2)
 
@@ -248,7 +247,6 @@ class DexFile:
             except ValueError:
                 continue
             if i > 0:
-                print("Fixed I array.")
                 break
         assert(self.u32s.itemsize == 4)
 
