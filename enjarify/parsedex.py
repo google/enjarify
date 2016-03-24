@@ -231,9 +231,25 @@ class SizeOff:
 class DexFile:
     def __init__(self, data):
         self.raw = data
-        self.u16s = array.array('H', data)
+        length = len(data)
+        for i in range(0, length):
+            try:
+                self.u16s = array.array('H', data[0:length-i])
+            except ValueError:
+                continue
+            if i > 0:
+                print("Fixed H array.")
+                break
         assert(self.u16s.itemsize == 2)
-        self.u32s = array.array('I', data)
+
+        for i in range(0, length):
+            try:
+                self.u32s = array.array('I', data[0:length-i])
+            except ValueError:
+                continue
+            if i > 0:
+                print("Fixed I array.")
+                break
         assert(self.u32s.itemsize == 4)
 
         stream = Reader(data)
