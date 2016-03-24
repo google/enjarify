@@ -62,7 +62,7 @@ def main():
     args = parser.parse_args()
 
     dexs = []
-    if args.inputfile.endswith('apk'):
+    if args.inputfile.endswith('.apk'):
         with zipfile.ZipFile(args.inputfile, 'r') as z:
             for name in z.namelist():
                 if name.startswith('classes') and name.endswith('.dex'):
