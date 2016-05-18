@@ -214,3 +214,8 @@ _return_or_throw_bytecodes = {bytes([op]) for op in range(IRETURN, RETURN+1) }
 _return_or_throw_bytecodes.add(bytes([ATHROW]))
 class Other(JvmInstruction):
     def fallsthrough(self): return self.bytecode not in _return_or_throw_bytecodes
+
+def Pop(): return Other(bytes([POP]))
+def Pop2(): return Other(bytes([POP2]))
+def Dup(): return Other(bytes([DUP]))
+def Dup2(): return Other(bytes([DUP2]))

@@ -152,8 +152,7 @@ def removeUnusedRegisters(irdata):
                 replace[prev] = []
                 replace[instr] = []
             else:
-                op = POP2 if instr.wide else POP
-                replace[instr] = [ir.Other(bytecode=bytes([op]))]
+                replace[instr] = [ir.Pop2() if instr.wide else ir.Pop()]
         prev = instr
     irdata.replaceInstrs(replace)
 

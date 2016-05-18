@@ -15,11 +15,6 @@
 from .. import ir
 from ..jvmops import *
 
-_dup = bytes([DUP])
-_dup2 = bytes([DUP2])
-_pop = bytes([POP])
-_pop2 = bytes([POP2])
-
 def visitLinearCode(irdata, visitor):
     # Visit linear sections of code, pessimistically treating all exception
     # handler ranges as jumps.
@@ -150,17 +145,17 @@ def genDups(needed, needed_after):
         cur = []
         if have < needed:
             if have == 1 and needed >= 2:
-                cur.append(_dup)
+                cur.append(ir.Dup())
                 have += 1
             if have == 2 and needed >= 4:
-                cur.append(_dup2)
+                cur.append(ir.Dup2())
                 have += 2
         have -= 1
         needed -= 1
         yield cur
     assert(have >= needed)
     # check if we have to pop at end
-    yield [_pop]*(have-needed)
+    yield [ir.Pop() for _ in range(have-needed)]
 
 # Range of instruction indexes at which a given register is read (in linear code)
 class UseRange:
@@ -243,7 +238,7 @@ def dup2ize(irdata):
     for ur in chosen:
         gen = genDups(len(ur.uses), 0)
         for pos in ur.uses:
-            ops = [ir.Other(bytecode) for bytecode in next(gen)]
+            ops = next(gen)
             # remember to include initial load!
             if pos == ur.start:
                 ops = [instrs[pos]] + ops

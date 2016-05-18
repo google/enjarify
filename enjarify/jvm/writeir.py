@@ -121,14 +121,14 @@ class IRBlock:
     def fillarraysub(self, op, cbs, pop=True):
         gen = stack.genDups(len(cbs), 0 if pop else 1)
         for i, cb in enumerate(cbs):
-            for bytecode in next(gen):
-                self._other(bytecode)
+            for instr in next(gen):
+                self.add(instr)
             self.const(i, scalars.INT)
             cb()
             self.u8(op)
         # may need to pop at end
-        for bytecode in next(gen):
-            self._other(bytecode)
+        for instr in next(gen):
+            self.add(instr)
 
     def newarray(self, desc):
         if desc in _newArrayCodes:
@@ -225,7 +225,7 @@ class IRWriter:
                 # check if we can put handler pop in front of block
                 if instructions and not instructions[-1].fallsthrough():
                     instructions.append(self.exception_redirects.pop(pos))
-                    instructions.append(ir.Other(bytecode=bytes([POP])))
+                    instructions.append(ir.Pop())
                 # if not, leave it in dict to be redirected later
             # now add instructions for actual block
             instructions += self.iblocks[pos].instructions
@@ -234,7 +234,7 @@ class IRWriter:
         # in this case, just put them at the end with a goto back to the handler
         for target in sorted(self.exception_redirects):
             instructions.append(self.exception_redirects[target])
-            instructions.append(ir.Other(bytecode=bytes([POP])))
+            instructions.append(ir.Pop())
             instructions.append(ir.Goto(target))
 
         self.flat_instructions = instructions
@@ -369,7 +369,7 @@ def visitFillArrayData(method, dex, instr_d, type_data, block, instr):
             # there is 0 data, so we need to add an instruction that
             # throws a NPE in this case
             block.u8(ARRAYLENGTH)
-            block.u8(POP)
+            block.add(ir.Pop())
         else:
             st, elet = arrays.eletPair(at)
             # check if we need to sign extend
@@ -500,7 +500,7 @@ def visitInvoke(method, dex, instr_d, type_data, block, instr):
     if instr_d.get(instr.pos2).type != dalvik.MoveResult:
         if called_id.return_type != b'V':
             st = scalars.fromDesc(called_id.return_type)
-            block.u8(POP2 if scalars.iswide(st) else POP)
+            block.add(ir.Pop2() if scalars.iswide(st) else ir.Pop())
 
 def visitUnaryOp(method, dex, instr_d, type_data, block, instr):
     op, srct, destt = mathops.UNARY[instr.opcode]
