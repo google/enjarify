@@ -36,7 +36,7 @@ def normalizeDouble(x):
     return x
 
 def _calcInt(x):
-    assert(x == s32(x))
+    assert x == s32(x)
     if x in lookup.INTS:
         return lookup.INTS[x]
 
@@ -44,13 +44,13 @@ def _calcInt(x):
     # (high << 16) ^ low
     low = s16(x)
     high = (x ^ low) >> 16
-    assert(high)
+    assert high
     if not low:
         return _calcInt(high) + _calcInt(16) + bytes([ISHL])
     return _calcInt(high) + _calcInt(16) + bytes([ISHL]) + _calcInt(low) + bytes([IXOR])
 
 def _calcLong(x):
-    assert(x == s64(x))
+    assert x == s64(x)
     if x in lookup.LONGS:
         return lookup.LONGS[x]
 
@@ -67,7 +67,7 @@ def _calcLong(x):
     return result
 
 def _calcFloat(x):
-    assert(x == normalizeFloat(x))
+    assert x == normalizeFloat(x)
     if x in lookup.FLOATS:
         return lookup.FLOATS[x]
 
@@ -99,7 +99,7 @@ def _calcFloat(x):
     return _calcInt(mantissa) + bytes([I2F]) + exponent_parts
 
 def _calcDouble(x):
-    assert(x == normalizeDouble(x))
+    assert x == normalizeDouble(x)
     if x in lookup.DOUBLES:
         return lookup.DOUBLES[x]
 
@@ -143,7 +143,7 @@ def _calcDouble(x):
             stack.append(stack.pop() + stack.pop())
             last_needed = part63 & (1<<bi)
 
-        assert(sum(stack) == part63 and len(stack) == bin(part63).count('1'))
+        assert sum(stack) == part63 and len(stack) == bin(part63).count('1')
         exponent_parts.extend([DMUL] * bin(part63).count('1'))
 
     # now handle the rest
@@ -177,7 +177,7 @@ def calc(st, val):
         return calcLong(val)
     elif st == scalars.DOUBLE:
         return calcDouble(val)
-    assert(0)
+    assert 0
 
 def lookupOnly(st, val):
     # assume floats and double have already been normalized but int/longs haven't

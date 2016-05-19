@@ -41,11 +41,11 @@ def narrow(t1, t2):
     return t1 if (t1 == t2) else NULL
 
 def eletPair(t):
-    assert(t is not NULL)
+    assert t is not NULL
     if t is INVALID:
         return scalars.OBJ, t
 
-    assert(t.startswith(b'['))
+    assert t.startswith(b'[')
     t = t[1:]
     return scalars.fromDesc(t), t
 

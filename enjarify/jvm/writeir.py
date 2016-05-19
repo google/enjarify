@@ -71,7 +71,7 @@ class IRBlock:
             self.add(ir.RegAccess(reg, stype, store=False))
             # cast to appropriate type if tainted
             if stype == scalars.OBJ and self.type_data.tainted[reg]:
-                assert(desc is None or clsname is None)
+                assert desc is None or clsname is None
                 if clsname is None:
                     # remember to handle arrays - also fallthrough if desc is None
                     clsname = desc[1:-1] if (desc and desc.startswith(b'L')) else desc
@@ -103,9 +103,9 @@ class IRBlock:
             self.u8(IRETURN + _ilfdaOrd(stype))
 
     def const(self, val, stype):
-        assert((1<<64) > val >= 0)
+        assert (1<<64) > val >= 0
         if stype == scalars.OBJ:
-            assert(val == 0)
+            assert val == 0
             self.const_null()
         else:
             # If constant pool is simple, assume we're in non-opt mode and only use
@@ -170,7 +170,7 @@ class IRBlock:
         while s_ind < e_ind and not isinstance(self.instructions[e_ind-1], ir.Other):
             e_ind -= 1
 
-        assert(s_ind < e_ind)
+        assert s_ind < e_ind
         start_lbl, end_lbl = ir.Label(), ir.Label()
         self.instructions.insert(s_ind, start_lbl)
         self.instructions.insert(e_ind+1, end_lbl)
@@ -246,7 +246,7 @@ class IRWriter:
             for instr in self.flat_instructions:
                 instructions.extend(replace.get(instr, [instr]))
             self.flat_instructions = instructions
-            assert(len(set(instructions)) == len(instructions))
+            assert len(set(instructions)) == len(instructions)
 
     def calcUpperBound(self):
         # Get an uppper bound on the size of the bytecode
@@ -478,7 +478,7 @@ def visitInvoke(method, dex, instr_d, type_data, block, instr):
     called_id = dex.method_id(instr.args[0])
     sts = scalars.paramTypes(called_id, static=isstatic)
     descs = called_id.getSpacedParamTypes(isstatic=isstatic)
-    assert(len(sts) == len(instr.args[1]) == len(descs))
+    assert len(sts) == len(instr.args[1]) == len(descs)
 
     for st, desc, reg in zip(sts, descs, instr.args[1]):
         if st != scalars.INVALID: # skip long/double tops
@@ -597,7 +597,7 @@ def writeBytecode(pool, method, opts):
         VISIT_FUNCS[instr.type](method, dex, instr_d, type_data, block, instr)
 
     for instr in sorted(all_handlers, key=lambda instr: instr.pos):
-        assert(all_handlers[instr])
+        assert all_handlers[instr]
         if instr.pos not in types: # skip unreachable instructions
             continue
 

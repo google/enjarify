@@ -35,7 +35,7 @@ def visitLinearCode(irdata, visitor):
             visitor.visitReturn()
         else:
             visitor.visit(instr)
-    assert(except_level == 0)
+    assert except_level == 0
     return visitor
 
 class NoExceptVisitorBase:
@@ -103,7 +103,7 @@ class StoreLoadPruner(NoExceptVisitorBase):
 
     def visitReturn(self):
         for pair in self.current.values():
-            assert(pair[0].store and not pair[1].store)
+            assert pair[0].store and not pair[1].store
             self.removed.update(pair)
         self.reset()
 
@@ -113,7 +113,7 @@ class StoreLoadPruner(NoExceptVisitorBase):
             if instr.store:
                 if key in self.current:
                     pair = self.current[key]
-                    assert(pair[0].store and not pair[1].store)
+                    assert pair[0].store and not pair[1].store
                     self.removed.update(self.current.pop(key))
                 self.last = instr
             else:
@@ -153,7 +153,7 @@ def genDups(needed, needed_after):
         have -= 1
         needed -= 1
         yield cur
-    assert(have >= needed)
+    assert have >= needed
     # check if we have to pop at end
     yield [ir.Pop() for _ in range(have-needed)]
 
@@ -182,7 +182,7 @@ class UseRange:
     def sortkey(self): return len(self.uses), self.uses[0]
 
 def makeRange(instr):
-    assert(isinstance(instr, ir.RegAccess) and not instr.store)
+    assert isinstance(instr, ir.RegAccess) and not instr.store
     return UseRange([])
 
 def dup2ize(irdata):

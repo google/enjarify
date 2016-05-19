@@ -62,11 +62,11 @@ class TypeInfo:
         return new
 
     def assign(self, reg, st, at=arrays.INVALID, taint=False):
-        assert(st is not None)
+        assert st is not None
         return self._copy()._set(reg, st, at, taint)
 
     def assign2(self, reg, st):
-        assert(st is not None)
+        assert st is not None
         at = arrays.INVALID
         return self._copy()._set(reg, st, at)._set(reg+1, scalars.INVALID, at)
 

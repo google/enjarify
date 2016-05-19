@@ -28,7 +28,7 @@ def executeTest(name, opts):
     dir = os.path.join('tests', name)
     rawdex = read(os.path.join(dir, 'classes.dex'), 'rb')
     classes, errors = translate(rawdex, opts=opts)
-    assert(not errors)
+    assert not errors
 
     classes.update(STUB_FILES)
     writeToJar('out.jar', classes)
@@ -37,7 +37,7 @@ def executeTest(name, opts):
         stderr=subprocess.STDOUT,
         universal_newlines=True)
     expected = read(os.path.join(dir, 'expected.txt'), 'r')
-    assert(result == expected)
+    assert result == expected
 
 
 for opts in [options.NONE, options.PRETTY, options.ALL]:

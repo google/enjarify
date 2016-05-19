@@ -49,7 +49,7 @@ def i2f(x):
     shift = 24 - x.bit_length()
     # Don't bother implementing rounding since we'll only convert small ints
     # that can be exactly represented anyway
-    assert(shift >= 0)
+    assert shift >= 0
     mantissa = x << shift
     exponent = shift + 127
     return (exponent << 23) | mantissa
@@ -64,7 +64,7 @@ def i2d(x):
     if x < 0:
         return i2d(-x) ^ DOUBLE_SIGN
     shift = 53 - x.bit_length()
-    assert(shift >= 0)
+    assert shift >= 0
     mantissa = x << shift
     exponent = shift + 1023
     return (exponent << 52) | mantissa

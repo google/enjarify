@@ -154,7 +154,7 @@ def decode(shorts, pos, opcode):
 
     # Hats depend on actual size expected, so we rely on opcode as a hack
     if fmt[2] == 'h':
-        assert(opcode == 0x15 or opcode == 0x19)
+        assert opcode == 0x15 or opcode == 0x19
         results[-1] = results[-1] << (16 if opcode == 0x15 else 48)
 
     # Convert code offsets to actual code position

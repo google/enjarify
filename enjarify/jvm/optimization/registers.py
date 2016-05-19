@@ -32,7 +32,7 @@ class _CopySet:
         self.q = [] # keep track of insertion order in case root is overwritten
 
     def add(self, key):
-        assert(self.set)
+        assert self.set
         self.set.add(key)
         self.q.append(key)
 
@@ -113,7 +113,7 @@ def copyPropagation(irdata):
             else:
                 root_key = current.load(key)
                 if key != root_key:
-                    assert(instr not in replace)
+                    assert instr not in replace
                     # replace with load from root register instead
                     replace[instr] = [ir.RegAccess(root_key[0], root_key[1], False)]
 
@@ -145,7 +145,7 @@ def removeUnusedRegisters(irdata):
     prev = None
     for instr in instrs:
         if isinstance(instr, ir.RegAccess) and instr.key not in used:
-            assert(instr.store)
+            assert instr.store
             # if prev instruction is load or const, just remove it and the store
             # otherwise, replace the store with a pop
             if _isRemoveable(prev):

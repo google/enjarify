@@ -52,7 +52,7 @@ class _TreeListSub:
             self.children = children
 
     def __getitem__(self, i):
-        assert(i >= 0)
+        assert i >= 0
         if i < SIZE:
             return self.direct[i]
 
@@ -65,7 +65,7 @@ class _TreeListSub:
         return child[i]
 
     def set(self, i, val):
-        assert(i >= 0)
+        assert i >= 0
         if i < SIZE:
             if self.direct[i] == val:
                 return self

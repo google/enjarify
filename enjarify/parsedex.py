@@ -232,9 +232,9 @@ class DexFile:
     def __init__(self, data):
         self.raw = data
         self.u16s = array.array('H', data[:len(data) & ~1])
-        assert(self.u16s.itemsize == 2)
+        assert self.u16s.itemsize == 2
         self.u32s = array.array('I', data[:len(data) & ~3])
-        assert(self.u32s.itemsize == 4)
+        assert self.u32s.itemsize == 4
 
         stream = Reader(data)
 

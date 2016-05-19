@@ -51,7 +51,7 @@ def optimizeJumps(irdata):
             break
 
     for ins in jump_instrs:
-        assert(ins.min <= ins.max)
+        assert ins.min <= ins.max
         ins.max = ins.min
 
 def createBytecode(irdata):
@@ -63,7 +63,7 @@ def createBytecode(irdata):
         if isinstance(ins, (ir.LazyJumpBase, ir.Switch)):
             ins.calcBytecode(posd, irdata.labels)
         bytecode += ins.bytecode
-    assert(len(bytecode) == end_pos)
+    assert len(bytecode) == end_pos
 
     prev_instr_map = dict(zip(instrs[1:], instrs))
     packed_excepts = []
@@ -79,11 +79,11 @@ def createBytecode(irdata):
         s_off = posd[s]
         e_off = posd[e]
         h_off = posd[h]
-        assert(s_off <= e_off)
+        assert s_off <= e_off
         if s_off < e_off:
             packed_excepts.append(struct.pack('>HHHH', s_off, e_off, h_off, c))
         else:
             print('Skipping zero width exception!')
-            assert(0)
+            assert 0
 
     return bytes(bytecode), packed_excepts

@@ -48,7 +48,7 @@ class ConstantPoolBase:
             low = tag in (CONSTANT_Integer, CONSTANT_Float, CONSTANT_String)
             d[args] = index = self._getInd(low, _width(tag))
 
-            assert(self.vals[index] is None)
+            assert self.vals[index] is None
             self.vals[index] = tag, args
         return d[args]
 
@@ -73,7 +73,7 @@ class ConstantPoolBase:
         return index
 
     def utf8(self, s):
-        assert(isinstance(s, bytes))
+        assert isinstance(s, bytes)
         if len(s) > 65535:
             raise error.ClassfileLimitExceeded()
         return self._get(CONSTANT_Utf8, s)
@@ -181,7 +181,7 @@ class SplitConstantPool(ConstantPoolBase):
     def write(self, stream):
         stream.u16(len(self.vals))
 
-        assert(self.bot <= self.top)
+        assert self.bot <= self.top
         for item in self.vals[:self.bot]:
             self._writeEntry(stream, item)
 

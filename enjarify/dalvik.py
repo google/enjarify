@@ -200,7 +200,7 @@ def parseBytecode(dex, insns_start_pos, shorts, catch_addrs):
             instr2.prev_result = dex.type(instr.args[0])
         elif instr2.pos in catch_addrs:
             instr2.prev_result = b'Ljava/lang/Throwable;'
-    assert(0 not in catch_addrs)
+    assert 0 not in catch_addrs
 
     # Fill in implicit cast data
     for i, instr in enumerate(ops):

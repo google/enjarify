@@ -54,7 +54,7 @@ class RegAccess(JvmInstruction):
         return new
 
     def calcBytecode(self, local):
-        assert(self.bytecode is None)
+        assert self.bytecode is None
         stype = self.key[1]
         op_off = (ISTORE - ILOAD) if self.store else 0
         if local < 4:
@@ -175,7 +175,7 @@ class Switch(JvmInstruction):
         self.default = default
         self.jumps = jumps
 
-        assert(jumps)
+        assert jumps
         self.low = min(jumps)
         self.high = max(jumps)
 
