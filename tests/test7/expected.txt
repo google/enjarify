@@ -1,0 +1,36 @@
+_init_
+testTypes
+class 01
+class 0
+class 00
+class 1
+class 00
+class 01
+[class 01 ]
+[class 01 ]
+[class 01 ]
+[class 01 [class 01 ] ]
+class 1
+class 1
+[class 0 class 00 ]
+[class 00 class 00 ]
+[class 0 class 0 ]
+[class 0 class 0 ]
+class 00
+class 01
+class 0
+class 0
+class 00
+class 01
+[class 00 ]
+[class 00 class 00 ]
+class 00
+[class 00 class 00 ]
+[class 01 ]
+[class 01 ]
+[class 01 ]
+class java.lang.ArrayStoreException
+[[-1, 1, 1, 0, 6] [-1, 1, 1, 0, 0, 0] [true, true, true, false, false, false] ]
+[[-1, 1, 1, 0, 6] [1, 1, 0, -14, 0, 0] [true, true, false, true, false, false] ]
+[[-1, 1, 1, 0, 6] [-1, 1, 1, 0, 0, 0] [true, true, true, false, false, false] ]
+[[-1, 1, 1, 0, 6] [1, 1, 0, -14, 0, 0] [true, true, false, true, false, false] ]

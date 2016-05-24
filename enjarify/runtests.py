@@ -42,5 +42,6 @@ def executeTest(name, opts):
 
 for opts in [options.NONE, options.PRETTY, options.ALL]:
     for i in range(1, 7):
+    # for i in range(1, 8): # todo
         executeTest('test{}'.format(i), opts)
 print('all tests passed!')
