@@ -20,7 +20,7 @@ from .jvm.optimization import options
 # Hash outputs of all tests in order to easily detect changes between versions
 fullhash = b''
 
-for i in range(1, 7):
+for i in range(1, 8):
     name = 'test{}'.format(i)
     print(name)
     dir = os.path.join('tests', name)
