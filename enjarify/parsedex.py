@@ -217,10 +217,8 @@ class DexClass:
             self.data = ClassData(self.dex, self.data_off)
             if self.constant_values_off:
                 stream = self.dex.stream(self.constant_values_off)
-                size = stream.uleb128()
-                constant_vals = [encodedValue(self.dex, stream) for _ in range(size)]
-                for field, val in zip(self.data.fields, constant_vals):
-                    field.constant_value = val
+                for field in self.data.fields[:stream.uleb128()]:
+                    field.constant_value = encodedValue(self.dex, stream)
 
 class SizeOff:
     def __init__(self, stream):
