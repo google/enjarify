@@ -90,7 +90,6 @@ class FieldId(MFIdMixin):
 
 class Field:
     def __init__(self, dex, field_idx, access):
-        self.dex = dex
         self.id = FieldId(dex, field_idx)
         self.access = access
         self.constant_value = None # will be set later
