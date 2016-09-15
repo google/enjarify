@@ -23,12 +23,6 @@ def allocateRequiredConstants(pool, long_irs):
     # but it shouldn't be a big deal since this code is almost never required
     # in the first place. In fact, there are no known real world classes that
     # even come close to exhausting the constant pool.
-
-    # print('{} methods potentially too long'.format(len(long_irs)))
-    # print(sorted([_ir.upper_bound for _ir in long_irs], reverse=True))
-    # for _ir in long_irs:
-    #     print(_ir.method.id.triple(), _ir.upper_bound)
-
     narrow_pairs = collections.Counter()
     wide_pairs = collections.Counter()
     alt_lens = {}

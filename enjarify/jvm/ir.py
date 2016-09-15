@@ -40,7 +40,6 @@ class Label(JvmInstruction):
 
 _ilfdaOrd = [scalars.INT, scalars.LONG, scalars.FLOAT, scalars.DOUBLE, scalars.OBJ].index
 class RegAccess(JvmInstruction):
-    max = 4 # upper limit on length of bytecode
     def __init__(self, dreg, st, store):
         super().__init__()
         self.key = dreg, st

@@ -60,10 +60,7 @@ def finishCodeAttrs(pool, code_irs, opts):
         # First off, we find which methods are potentially too long. If a method
         # will be under 65536 bytes even with all constants replaced, then it
         # will be ok no matter what we do.
-        long_irs = []
-        for _ir in code_irs:
-            if _ir.calcUpperBound() >= 65536:
-                long_irs.append(_ir)
+        long_irs = [irw for irw in code_irs if irw.calcUpperBound() >= 65536]
 
         # Now allocate constants used by potentially long methods
         if long_irs:
