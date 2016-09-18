@@ -90,7 +90,6 @@ class FieldId(MFIdMixin):
 
 class Field:
     def __init__(self, dex, field_idx, access):
-        self.dex = dex
         self.id = FieldId(dex, field_idx)
         self.access = access
         self.constant_value = None # will be set later
@@ -218,10 +217,8 @@ class DexClass:
             self.data = ClassData(self.dex, self.data_off)
             if self.constant_values_off:
                 stream = self.dex.stream(self.constant_values_off)
-                size = stream.uleb128()
-                constant_vals = [encodedValue(self.dex, stream) for _ in range(size)]
-                for field, val in zip(self.data.fields, constant_vals):
-                    field.constant_value = val
+                for field in self.data.fields[:stream.uleb128()]:
+                    field.constant_value = encodedValue(self.dex, stream)
 
 class SizeOff:
     def __init__(self, stream):

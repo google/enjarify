@@ -81,7 +81,6 @@ def inlineConsts(irdata):
     instrs = irdata.flat_instructions
     visitor = visitLinearCode(irdata, ConstInliner())
 
-    remove = set()
     replace = {}
     for ins1, ins2 in zip(instrs, instrs[1:]):
         if ins2 in visitor.notmultiused and isinstance(ins1, (ir.PrimConstant, ir.OtherConstant)):

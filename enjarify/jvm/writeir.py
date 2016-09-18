@@ -198,7 +198,6 @@ class IRWriter:
         self.target_pred_counts = collections.defaultdict(int)
 
         self.numregs = None # will be set once registers are allocated (see registers.py)
-        self.upper_bound = None # upper bound on code length
 
     def calcInitialArgs(self, nregs, scalar_ptypes):
         self.initial_args = args = []
@@ -256,7 +255,6 @@ class IRWriter:
                 size += ins.max
             else:
                 size += len(ins.bytecode)
-        self.upper_bound = size
         return size
 
 ################################################################################
