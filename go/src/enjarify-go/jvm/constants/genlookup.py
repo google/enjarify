@@ -14,7 +14,7 @@
 
 import struct, itertools
 
-from jvmops import *
+from genjvmops import *
 
 def s32(val):
     val %= 1 << 32
