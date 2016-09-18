@@ -6,3 +6,4 @@
 htmlcov
 ignore*
 go/enjarify
+enjarify-rs/target

@@ -1,0 +1,11 @@
+[package]
+name = "enjarify-rs"
+version = "1.0.2"
+authors = [""]
+
+[dependencies]
+byteorder = "0.5.3"
+getopts = "0.2"
+lazy_static = "0.1.*"
+rust-crypto = "^0.2"
+zip = "0.1.18"
