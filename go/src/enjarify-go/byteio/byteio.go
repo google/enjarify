@@ -19,7 +19,7 @@ import (
 )
 
 type Reader struct {
-	Data []byte
+	Data string
 	Pos  uint32
 }
 
@@ -30,18 +30,12 @@ func (self *Reader) U8() (data uint8) {
 
 func (self *Reader) U16() (data uint16) {
 	result := uint16(self.U8()) + (uint16(self.U8()) << 8)
-
-	// fmt.Printf("u16 %v\n", result)
 	return result
-	// return uint16(self.U8()) + (uint16(self.U8()) << 8)
 }
 
 func (self *Reader) U32() (data uint32) {
-	// fmt.Printf("u32 pos %v bytes %v\n", self.Pos, self.Data[self.Pos:self.Pos+4])
 	result := uint32(self.U16()) + (uint32(self.U16()) << 16)
-	// fmt.Printf("u32 %v\n", result)
 	return result
-	// return uint32(self.U16()) + (uint32(self.U16()) << 16)
 }
 
 func (self *Reader) U64() (data uint64) {
@@ -57,7 +51,6 @@ func (self *Reader) leb128() (result, size uint32) {
 	}
 	result ^= uint32(b&0x7f) << size
 	size += 7
-	// fmt.Printf("leb %v s%v\n", result, size)
 	return
 }
 
@@ -75,13 +68,13 @@ func (self *Reader) Sleb128() int32 {
 	return val
 }
 
-func (self *Reader) CStr() []byte {
-	result := []byte{}
-	b := self.U8()
-	for b != 0 {
-		result = append(result, b)
-		b = self.U8()
+func (self *Reader) CStr() string {
+	pos := self.Pos
+	for self.Data[pos] != 0 {
+		pos++
 	}
+	result := self.Data[self.Pos:pos]
+	self.Pos = pos
 	return result
 }
 

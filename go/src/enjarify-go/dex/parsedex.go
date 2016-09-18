@@ -149,7 +149,7 @@ func newSizeOff(stream *byteio.Reader) sizeOff {
 }
 
 type DexFile struct {
-	raw                                                    []byte
+	raw                                                    string
 	string_ids, type_ids, proto_ids, field_ids, method_ids sizeOff
 	Classes                                                []DexClass
 }
@@ -198,8 +198,7 @@ func (self *DexFile) GetMethodId(i uint32) MethodId {
 	return methodId(self, i)
 }
 
-func Parse(sdata string) *DexFile {
-	data := []byte(sdata)
+func Parse(data string) *DexFile {
 	dex := DexFile{raw: data}
 
 	// parse header
