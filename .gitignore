@@ -5,5 +5,5 @@
 .coverage
 htmlcov
 ignore*
-go/enjarify
+go/enjarify-go
 enjarify-rs/target
