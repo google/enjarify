@@ -54,7 +54,7 @@ pub fn allocate_required_constants(pool: &mut ConstantPool, irs: Vec<&IRWriter>)
         let most_common: Vec<Entry> = {
             let mut most_common: Vec<_> = narrow_pairs.iter().collect();
             most_common.sort_by_key(|&(ref p, &count)| (-(count as i64), p.cmp_key()));
-            most_common.into_iter().take(pool.lowspace()).map(|(ref p, count)| (*p).clone()).collect()
+            most_common.into_iter().take(pool.lowspace()).map(|(ref p, _count)| (*p).clone()).collect()
         };
         for k in most_common.into_iter() {
             narrow_pairs.remove(&k);

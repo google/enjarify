@@ -14,6 +14,8 @@
 // use std::str;
 
 pub type BString = Vec<u8>;
+
+#[allow(non_camel_case_types)]
 pub type bstr = [u8];
 
 // pub fn to_str(s: &bstr) -> &str { str::from_utf8(s).unwrap() }

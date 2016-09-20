@@ -11,6 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+#![allow(dead_code)] //not all ops are actually used at this time
+
 pub const NOP: u8 = 0x00;
 pub const ACONST_NULL: u8 = 0x01;
 pub const ICONST_M1: u8 = 0x02;

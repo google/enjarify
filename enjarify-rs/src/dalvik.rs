@@ -71,6 +71,7 @@ impl DalvikType {
     }
 }
 
+#[allow(dead_code)] //width is not used
 pub struct ArrayData<'a>{width: u8, pub count: u32, pub stream: Reader<'a>}
 pub struct SwitchData<'a>{packed: bool, count: u32, stream: Reader<'a>}
 impl<'a> SwitchData<'a> {
@@ -81,7 +82,7 @@ impl<'a> SwitchData<'a> {
             (0..self.count).map(|i| (first_key.wrapping_add(i), st.u32())).collect()
         } else {
             let mut st2 = st.offset(4 * self.count);
-            (0..self.count).map(|i| (st.u32(), st2.u32())).collect()
+            (0..self.count).map(|_| (st.u32(), st2.u32())).collect()
         }
     }
 }

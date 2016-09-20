@@ -69,7 +69,7 @@ pub fn optimize_jumps(irdata: &mut IRWriter) {
     // as wide if their offset is too large (in rare cases, this can in turn cause
     // other jumps to become wide, hence iterating until convergence)
     let lbl_to_vind: HashMap<ir::LabelId, usize> = irdata.instructions.iter().enumerate()
-        .filter(|&(i, ref ins)| ins.lbl().is_some())
+        .filter(|&(_, ref ins)| ins.lbl().is_some())
         .map(|(i, ref ins)| (ins.lbl().unwrap(), i)).collect();
 
     loop {
@@ -92,7 +92,7 @@ fn opposite_op(op: u8) -> u8 {
 pub fn create_bytecode(irdata: IRWriter) -> (BString, Vec<(u16, u16, u16, u16)>) {
     // todo - avoid repetition?
     let lbl_to_vind: HashMap<ir::LabelId, usize> = irdata.instructions.iter().enumerate()
-        .filter(|&(i, ref ins)| ins.lbl().is_some())
+        .filter(|&(_, ref ins)| ins.lbl().is_some())
         .map(|(i, ref ins)| (ins.lbl().unwrap(), i)).collect();
     let (positions, endpos) = calc_min_positions(&irdata.instructions);
     let info = PosInfo(&lbl_to_vind, &positions);

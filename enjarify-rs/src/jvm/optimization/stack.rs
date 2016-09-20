@@ -63,7 +63,7 @@ impl Visitor for ConstInliner {
     fn reset(&mut self) { self.current.clear(); }
 
     fn visit_return(&mut self) {
-        for (key, val) in self.current.drain() {
+        for (_, val) in self.current.drain() {
             self.notmultiused.insert(val);
         }
     }
@@ -232,7 +232,7 @@ pub fn dup2ize(irdata: &mut IRWriter) {
         // since they clear the stack, but jumps obviously aren't.
         let lbl = instr.lbl();
         if instr.is_jump() || irdata.is_target(lbl) {
-            ranges.extend(current.drain().map(|(k, v)| v));
+            ranges.extend(current.drain().map(|(_, v)| v));
         }
 
         if let ir::RegAccess(ref data) = instr.sub {
@@ -250,7 +250,7 @@ pub fn dup2ize(irdata: &mut IRWriter) {
 
         at_head = if let Some(DPos(_)) = lbl {true} else {false};
     }
-    ranges.extend(current.drain().map(|(k, v)| v));
+    ranges.extend(current.drain().map(|(_, v)| v));
 
     let mut ranges: Vec<_> = ranges.into_iter().filter(|ref ur| ur.0.len() >= 2).collect();
     ranges.sort_by_key(|ur| (ur.0.len(), ur.start()));
