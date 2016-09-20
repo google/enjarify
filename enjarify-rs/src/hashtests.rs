@@ -47,7 +47,7 @@ pub fn main() {
             let (classes, ordkeys, errors) = translate(Options::from(bits), &dexes);
             assert!(errors.is_empty());
 
-            for (i, k) in ordkeys.into_iter().enumerate() {
+            for (_, k) in ordkeys.into_iter().enumerate() {
                 let ref cls = classes[&k];
                 // println!("filename {}", hexdigest(k.as_bytes()));
                 println!("{:08b} {}", bits, hexdigest(&cls));

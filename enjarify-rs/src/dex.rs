@@ -27,7 +27,7 @@ fn type_list<'a>(dex: &'a DexFile<'a>, off: u32, parse_cls_desc: bool) -> Vec<&'
     let mut st = dex.stream(off);
     let size = st.u32();
     let mut result = Vec::with_capacity(size as usize);
-    for i in 0..size {
+    for _ in 0..size {
         let idx = st.u16() as u32;
         result.push(if parse_cls_desc {dex.cls_type(idx)} else {dex.raw_type(idx)});
     }
@@ -49,9 +49,9 @@ fn encoded_value<'a>(dex: &'a DexFile<'a>, stream: &mut Reader<'a>) -> ConstantV
 
     match vtype {
         0x1c => // ARRAY
-            { for i in 0..stream.uleb128() { encoded_value(dex, stream); }; return ConstantValue::Invalid; }
+            { for _ in 0..stream.uleb128() { encoded_value(dex, stream); }; return ConstantValue::Invalid; }
         0x1d => // ANNOTATION
-            { stream.uleb128(); for i in 0..stream.uleb128() { stream.uleb128(); encoded_value(dex, stream); }; return ConstantValue::Invalid; }
+            { stream.uleb128(); for _ in 0..stream.uleb128() { stream.uleb128(); encoded_value(dex, stream); }; return ConstantValue::Invalid; }
         0x1e => // NULL
             { return ConstantValue::None; }
         0x1f => // BOOLEAN
@@ -136,21 +136,21 @@ impl<'a> CodeItem<'a> {
     fn new(dex: &'a DexFile<'a>, offset: u32) -> CodeItem<'a> {
         let mut stream = dex.stream(offset);
         let nregs = stream.u16();
-        let ins_size = stream.u16();
-        let outs_size = stream.u16();
+        let _ins_size = stream.u16();
+        let _outs_size = stream.u16();
         let tries_size = stream.u16();
-        let debug_off = stream.u32();
+        let _debug_off = stream.u32();
         let insns_size = stream.u32();
         let code_start_st = stream.clone();
 
-        let shorts: Vec<u16> = (0..insns_size).map(|i| stream.u16()).collect();
+        let shorts: Vec<u16> = (0..insns_size).map(|_| stream.u16()).collect();
 
         if tries_size != 0 && insns_size & 1 != 0 {
             stream.u16(); // padding
         }
 
         let mut tries = Vec::with_capacity(tries_size as usize);
-        for i in 0..tries_size {
+        for _ in 0..tries_size {
             let (start, count, handler_off) = (stream.u32(), stream.u16(), stream.u16());
             tries.push(TryItem{
                 start: start,
@@ -166,7 +166,7 @@ impl<'a> CodeItem<'a> {
             let mut stream = list_off_st.offset(item.handler_off);
             let size = stream.sleb128();
             item.catches.reserve(size.abs() as usize + 1);
-            for i in 0..size.abs() {
+            for _ in 0..size.abs() {
                 item.catches.push(CatchItem{
                     ctype: dex.cls_type(stream.uleb128()),
                     target: stream.uleb128(),
@@ -285,8 +285,8 @@ impl<'a> DexClass<'a> {
         let access = stream.u32();
         let super_ = stream.u32();
         let interfaces = stream.u32();
-        let srcfile = stream.u32();
-        let annotations = stream.u32();
+        let _srcfile = stream.u32();
+        let _annotations = stream.u32();
         let data_off = stream.u32();
         let constant_values_off = stream.u32();
 
@@ -316,7 +316,7 @@ impl<'a> DexClass<'a> {
         let mut fields = Vec::with_capacity((numstatic + numinstance) as usize);
         for num in &[numstatic, numinstance] {
             let mut field_idx = 0;
-            for i in 0..*num {
+            for _ in 0..*num {
                 field_idx += stream.uleb128();
                 fields.push(Field::new(self.dex, field_idx, stream.uleb128()));
             }
@@ -325,7 +325,7 @@ impl<'a> DexClass<'a> {
         let mut methods = Vec::with_capacity((numdirect + numvirtual) as usize);
         for num in &[numdirect, numvirtual] {
             let mut method_idx = 0;
-            for i in 0..*num {
+            for _ in 0..*num {
                 method_idx += stream.uleb128();
                 methods.push(Method::new(self.dex, method_idx, stream.uleb128(), stream.uleb128()));
             }
@@ -350,6 +350,7 @@ impl SizeOff {
     }
 }
 
+#[allow(dead_code)] //data is not used
 pub struct DexFile<'a> {
     raw: &'a bstr,
     string_ids: SizeOff,

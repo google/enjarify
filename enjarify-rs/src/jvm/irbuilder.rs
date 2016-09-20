@@ -278,7 +278,7 @@ pub fn write_instruction<'b, 'a>(pool: &'b mut (ConstantPool<'a> + 'a), method: 
             block.const_(args.len() as u64, scalar::INT);
             block.new_array(dex.raw_type(instr.a));
             let at = array::T::from_desc(dex.raw_type(instr.a));
-            let (st, elet) = at.eletpair();
+            let (st, _elet) = at.eletpair();
             let op = at.store_op();
 
             let mustpop = instr_d[&instr.pos2].typ != dt::MoveResult;
@@ -307,7 +307,7 @@ pub fn write_instruction<'b, 'a>(pool: &'b mut (ConstantPool<'a> + 'a), method: 
                 block.u8(ARRAYLENGTH);
                 block.u8(POP);
             } else {
-                let (st, elet) = at.eletpair();
+                let (st, _elet) = at.eletpair();
                 let op = at.store_op();
                 let base = if let array::T::Array(1, base) = at {base} else {panic!("bad array")};
                 let mut stream = arrdata.stream.clone();

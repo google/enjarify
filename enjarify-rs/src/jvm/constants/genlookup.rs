@@ -94,7 +94,7 @@ pub fn create() -> (HashMap<i32, BString>, HashMap<u32, BString>, HashMap<i64, B
     // Sort for determinism. Otherwise -0x80000000 could be either
     // 1 << -1 or -1 << -1, for example
     let int_2s = {
-        let mut t: Vec<_> = all_ints.iter().filter(|&(k, v)| v.len() == 2).map(|(k, v)| *k).collect();
+        let mut t: Vec<_> = all_ints.iter().filter(|&(_, v)| v.len() == 2).map(|(k, _)| *k).collect();
         t.sort();
         t
     };

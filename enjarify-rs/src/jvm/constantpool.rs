@@ -189,10 +189,10 @@ impl<'a> ConstantPool<'a> for SimplePool<'a> {
     fn space(&self) -> usize { 65535 - self.vals.len() }
     fn lowspace(&self) -> usize { 256usize.saturating_sub(self.vals.len()) }
 
-    fn get_ind(&mut self, low: bool, width: usize) -> u16 {
+    fn get_ind(&mut self, _low: bool, width: usize) -> u16 {
         if self.space() < width { error::classfile_limit_exceeded(); }
         let temp = self.vals.len();
-        for i in 0..width { self.vals.push(None); }
+        for _ in 0..width { self.vals.push(None); }
         temp as u16
     }
     fn write(&self, stream: &mut Writer) {
@@ -262,7 +262,7 @@ impl<'a> ConstantPool<'a> for SplitPool<'a> {
         for item in &self.vals[..self.bot] { self.write_entry(stream, item); }
 
         stream.0.reserve(PLACEHOLDER_ENTRY.len() * (self.top - self.bot));
-        for i in 0..(self.top - self.bot) { stream.0.extend_from_slice(PLACEHOLDER_ENTRY); }
+        for _ in 0..(self.top - self.bot) { stream.0.extend_from_slice(PLACEHOLDER_ENTRY); }
 
         for item in &self.vals[self.top..] { self.write_entry(stream, item); }
     }
