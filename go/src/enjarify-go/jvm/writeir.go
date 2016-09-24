@@ -105,13 +105,27 @@ func visit(method dex.Method, dex_ *dex.DexFile, instr_d map[uint32]*dex.Instruc
 		block.NewArray(dex_.Type(instr.A))
 		st, elet := arrays.FromDesc(dex_.Type(instr.A)).EletPair()
 		op := ops.ArrStoreOp(elet)
-		cbs := make([]func(), len(instr.Args))
-		for i, x := range instr.Args {
-			x, st := x, st // make copy of vars for closure
-			cbs[i] = func() { block.Load(x, st) }
+
+		needed_after := 0
+		if instr_d[instr.Pos2].Type == dex.MoveResult {
+			needed_after = 1
 		}
-		mustpop := instr_d[instr.Pos2].Type != dex.MoveResult
-		block.FillArraySub(op, cbs, mustpop)
+		dups := genDups(len(instr.Args), needed_after)
+		for i, val := range instr.Args {
+			for _, bytecode := range dups[0] {
+				block.other(bytecode)
+			}
+
+			dups = dups[1:]
+			block.Const(uint64(i), scalars.INT)
+			block.Load(val, st)
+			block.U8(op)
+		}
+
+		// may need to pop at end
+		for _, bytecode := range dups[0] {
+			block.other(bytecode)
+		}
 
 	case dex.FillArrayData:
 		arrdata := instr_d[instr.B].Fillarrdata
@@ -129,7 +143,9 @@ func visit(method dex.Method, dex_ *dex.DexFile, instr_d map[uint32]*dex.Instruc
 				block.U8(POP)
 			} else {
 				st, elet := at.EletPair()
-				cbs := make([]func(), len(arrdata))
+				op := ops.ArrStoreOp(elet)
+
+				dups := genDups(len(arrdata), 0)
 				for i, val := range arrdata {
 					// check if we need to sign extend
 					if elet == "B" {
@@ -138,10 +154,15 @@ func visit(method dex.Method, dex_ *dex.DexFile, instr_d map[uint32]*dex.Instruc
 						val = uint64(uint32(int16(val)))
 					}
 					util.Assert(st != scalars.OBJ)
-					val, st := val, st // make copy of changing variables for closure
-					cbs[i] = func() { block.Const(val, st) }
+
+					for _, bytecode := range dups[0] {
+						block.other(bytecode)
+					}
+					dups = dups[1:]
+					block.Const(uint64(i), scalars.INT)
+					block.Const(val, st)
+					block.U8(op)
 				}
-				block.FillArraySub(ops.ArrStoreOp(elet), cbs, true)
 			}
 		}
 	case dex.Throw:

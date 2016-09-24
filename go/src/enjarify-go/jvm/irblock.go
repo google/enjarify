@@ -155,28 +155,6 @@ func (self *irBlock) ConstNull() {
 	self.add(ir.NewOtherConstant(byteio.B(ACONST_NULL)))
 }
 
-func (self *irBlock) FillArraySub(op byte, cbs []func(), pop bool) {
-	needed_after := 0
-	if !pop {
-		needed_after++
-	}
-
-	gen := genDups(len(cbs), needed_after)
-	for i, cb := range cbs {
-		for _, bytecode := range gen[i] {
-			self.other(bytecode)
-		}
-		self.Const(uint64(i), scalars.INT)
-		cb()
-		self.U8(op)
-	}
-
-	// may need to pop at end
-	for _, bytecode := range gen[len(cbs)] {
-		self.other(bytecode)
-	}
-}
-
 func (self *irBlock) NewArray(desc string) {
 	if code, ok := newArrayCodes[desc]; ok {
 		self.U8U8(NEWARRAY, code)
