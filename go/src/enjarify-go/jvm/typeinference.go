@@ -129,7 +129,7 @@ func isMathThrowOp(opcode uint8) bool {
 	}
 }
 
-func pruneHandlers(instr_d map[uint32]dex.Instruction, all_handlers map[uint32][]dex.CatchItem) map[uint32][]dex.CatchItem {
+func pruneHandlers(instr_d map[uint32]*dex.Instruction, all_handlers map[uint32][]dex.CatchItem) map[uint32][]dex.CatchItem {
 	result := make(map[uint32][]dex.CatchItem, len(all_handlers))
 	for pos, handlers := range all_handlers {
 		instr := instr_d[pos]
@@ -160,7 +160,7 @@ func pruneHandlers(instr_d map[uint32]dex.Instruction, all_handlers map[uint32][
 	return result
 }
 
-func visitNormal(dex_ *dex.DexFile, instr dex.Instruction, cur TypeInfo) TypeInfo {
+func visitNormal(dex_ *dex.DexFile, instr *dex.Instruction, cur TypeInfo) TypeInfo {
 	switch instr.Type {
 	case dex.ConstString, dex.ConstClass, dex.NewInstance:
 		return cur.assign(instr.Ra, scalars.OBJ)
@@ -219,12 +219,13 @@ func visitNormal(dex_ *dex.DexFile, instr dex.Instruction, cur TypeInfo) TypeInf
 	return cur
 }
 
-func doInference(method dex.Method, instr_d map[uint32]dex.Instruction) (map[uint32]TypeInfo, map[uint32][]dex.CatchItem) {
+func doInference(method dex.Method, instr_d map[uint32]*dex.Instruction) (map[uint32]TypeInfo, map[uint32][]dex.CatchItem) {
 	// fmt.Printf("TI %v\n", method.Triple)
 	code := method.Code
 	all_handlers := make(map[uint32][]dex.CatchItem)
 	for _, tryi := range code.Tries {
-		for _, instr := range code.Bytecode {
+		for i := range code.Bytecode {
+			instr := &code.Bytecode[i]
 			if tryi.Start < instr.Pos2 && tryi.End > instr.Pos {
 				all_handlers[instr.Pos] = append(all_handlers[instr.Pos], tryi.Catches...)
 			}
@@ -255,20 +256,15 @@ func doInference(method dex.Method, instr_d map[uint32]dex.Instruction) (map[uin
 	}
 
 	for len(dirty) > 0 {
-		for _, instr := range code.Bytecode {
+		for i := range code.Bytecode {
+			instr := &code.Bytecode[i]
 			if !dirty[instr.Pos] {
 				continue
 			}
 			delete(dirty, instr.Pos)
 
 			cur := types[instr.Pos]
-			// fmt.Printf("Inference at %d: %v %v %v\n", instr.Pos, cur.st(13), cur.at(13), cur.taint(13))
-			// fmt.Printf("Inference at %d: %v\n", instr.Pos, cur.prims.direct)
 			after := visitNormal(method.Dex, instr, cur)
-			// if instr.Pos == 12 {
-			// 	fmt.Printf("instr %v\n", instr)
-			// 	fmt.Printf("after: %v\n", after.prims.direct)
-			// }
 
 			result, after2 := after, after
 

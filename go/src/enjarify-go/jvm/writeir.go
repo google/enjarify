@@ -23,7 +23,7 @@ import (
 	"enjarify-go/util"
 )
 
-func visit(method dex.Method, dex_ *dex.DexFile, instr_d map[uint32]dex.Instruction, type_data TypeInfo, block *irBlock, instr dex.Instruction) {
+func visit(method dex.Method, dex_ *dex.DexFile, instr_d map[uint32]*dex.Instruction, type_data TypeInfo, block *irBlock, instr *dex.Instruction) {
 	switch instr.Type {
 	case dex.Nop:
 	case dex.Move:
@@ -322,8 +322,9 @@ func visit(method dex.Method, dex_ *dex.DexFile, instr_d map[uint32]dex.Instruct
 
 func writeBytecode(pool cpool.Pool, method dex.Method, opts Options) *IRWriter {
 	code := method.Code
-	instr_d := make(map[uint32]dex.Instruction, len(code.Bytecode))
-	for _, ins := range code.Bytecode {
+	instr_d := make(map[uint32]*dex.Instruction, len(code.Bytecode))
+	for i := range code.Bytecode {
+		ins := &code.Bytecode[i]
 		instr_d[ins.Pos] = ins
 	}
 
@@ -333,14 +334,16 @@ func writeBytecode(pool cpool.Pool, method dex.Method, opts Options) *IRWriter {
 	writer := newIRWriter(pool, method, types, opts)
 	writer.calcInitialArgs(code.Nregs, scalar_ptypes)
 
-	for _, instr := range code.Bytecode {
+	for i := range code.Bytecode {
+		instr := &code.Bytecode[i]
 		if type_data, ok := types[instr.Pos]; ok {
 			block := writer.createBlock(instr.Pos)
 			visit(method, method.Dex, instr_d, type_data, block, instr)
 		}
 	}
 
-	for _, instr := range code.Bytecode {
+	for i := range code.Bytecode {
+		instr := &code.Bytecode[i]
 		if _, ok := types[instr.Pos]; !ok {
 			continue // skip unreachable instructions
 		}

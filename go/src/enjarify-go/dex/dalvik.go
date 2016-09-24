@@ -248,26 +248,27 @@ func parseBytecode(dex *DexFile, insns_start_pos uint32, shorts []uint16, catch_
 	}
 
 	// Fill in data for move-result
-	for i, instr2 := range ops[1:] {
-		instr := ops[i]
+	for i := range ops[1:] {
+		instr := &ops[i]
+		instr2 := &ops[i+1]
 		if instr2.Type != MoveResult {
 			continue
 		}
 
 		if catch_addrs[instr2.Pos] {
-			ops[i+1].PrevResult = "Ljava/lang/Throwable;"
+			instr2.PrevResult = "Ljava/lang/Throwable;"
 		}
 
 		switch instr.Type {
 		case InvokeVirtual, InvokeSuper, InvokeDirect, InvokeStatic, InvokeInterface:
-			ops[i+1].PrevResult = dex.GetMethodId(instr.A).ReturnType
+			instr2.PrevResult = dex.GetMethodId(instr.A).ReturnType
 		case FilledNewArray:
-			ops[i+1].PrevResult = dex.Type(instr.A)
+			instr2.PrevResult = dex.Type(instr.A)
 		}
 	}
 
-	for i, instr := range ops {
-		switch instr.Opcode {
+	for i := range ops {
+		switch ops[i].Opcode {
 		case 0x38, 0x39:
 			if i > 0 && ops[i-1].Type == InstanceOf {
 				prev := ops[i-1]
