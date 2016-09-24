@@ -133,9 +133,9 @@ func visit(method dex.Method, dex_ *dex.DexFile, instr_d map[uint32]dex.Instruct
 				for i, val := range arrdata {
 					// check if we need to sign extend
 					if elet == "B" {
-						val = uint64(int8(val))
+						val = uint64(uint32(int8(val)))
 					} else if elet == "S" {
-						val = uint64(int16(val))
+						val = uint64(uint32(int16(val)))
 					}
 					util.Assert(st != scalars.OBJ)
 					val, st := val, st // make copy of changing variables for closure

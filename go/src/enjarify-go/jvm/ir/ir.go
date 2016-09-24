@@ -235,10 +235,7 @@ func cpoolKey(val uint64, st scalars.T) cpool.Pair {
 }
 
 func NewPrimConstant(st scalars.T, val uint64, pool cpool.Pool) Instruction {
-	// if !(st.Wide() || val == uint64(uint32(val))) {
-	// 	fmt.Printf("st %v val %v", st, val)
-	// }
-	// util.Assert(st.Wide() || val == uint64(uint32(val)))
+	util.Assert(st.Wide() || val == uint64(uint32(val)))
 	val = constants.Normalize(st, val)
 	key := cpoolKey(val, st)
 
