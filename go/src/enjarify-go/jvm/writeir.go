@@ -17,6 +17,7 @@ import (
 	"enjarify-go/dex"
 	"enjarify-go/jvm/arrays"
 	"enjarify-go/jvm/cpool"
+	"enjarify-go/jvm/ir"
 	"enjarify-go/jvm/ops"
 	"enjarify-go/jvm/scalars"
 	"enjarify-go/util"
@@ -347,16 +348,13 @@ func writeBytecode(pool cpool.Pool, method dex.Method, opts Options) *IRWriter {
 		if handlers, ok := all_handlers[instr.Pos]; ok {
 			_ = handlers[0]
 			start, end := writer.iblocks[instr.Pos].AddExceptLabels()
-			writer.except_starts[start] = true
-			writer.except_ends[end] = true
 
 			for _, item := range handlers {
-				target := writer.Labels[item.Target]
+				target := ir.Label{ir.DPOS, item.Target}
 				// If handler doesn't use the caught exception, we need to redirect to a pop instead
 				if instr_d[item.Target].Type != dex.MoveResult {
 					target = writer.addExceptionRedirect(item.Target)
 				}
-				writer.jump_targets[target] = true
 				writer.target_pred_counts[target]++
 
 				// When catching Throwable, we can use the special index 0 instead,
@@ -374,9 +372,7 @@ func writeBytecode(pool cpool.Pool, method dex.Method, opts Options) *IRWriter {
 	// find jump targets (in addition to exception handler targets)
 	for _, instr := range writer.Instructions {
 		for _, target := range instr.Targets() {
-			label := writer.Labels[target]
-			writer.jump_targets[label] = true
-			writer.target_pred_counts[label]++
+			writer.target_pred_counts[ir.Label{ir.DPOS, target}]++
 		}
 	}
 

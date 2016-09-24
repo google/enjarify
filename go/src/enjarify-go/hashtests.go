@@ -28,7 +28,8 @@ func hash(s string) string {
 
 func hashTests() {
 	fullhash := ""
-	for i := 1; i < 8; i++ {
+	// for i := 1; i < 8; i++ {
+	for i := 3; i < 8; i++ {
 		name := fmt.Sprintf("test%d", i)
 		fmt.Print(name + "\n")
 		dir := path.Join("..", "tests", name)

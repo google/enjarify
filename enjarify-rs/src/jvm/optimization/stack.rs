@@ -40,9 +40,7 @@ fn visit_linear_code<V: Visitor>(irdata: &IRWriter, visitor: &mut V) {
 
         if except_level > 0 { continue; }
 
-        if irdata.is_target(lbl) {
-            visitor.reset();
-        } else if instr.is_jump() {
+        if irdata.is_target(lbl) || instr.is_jump() {
             visitor.reset();
         } else if !instr.fallsthrough() {
             visitor.visit_return();

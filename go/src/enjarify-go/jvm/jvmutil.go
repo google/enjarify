@@ -25,7 +25,7 @@ func keys1(m map[uint32]*irBlock) (res USlice) {
 	}
 	return
 }
-func keys2(m map[uint32]*ir.Label) (res USlice) {
+func keys2(m map[uint32]ir.Instruction) (res USlice) {
 	for k, _ := range m {
 		res = append(res, k)
 	}
@@ -61,4 +61,22 @@ func (p pislice) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 func (p pislice) Sort() pislice {
 	sort.Sort(p)
 	return p
+}
+
+type SSlice []int32
+
+func (p SSlice) Len() int           { return len(p) }
+func (p SSlice) Less(i, j int) bool { return p[i] < p[j] }
+func (p SSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+func (p SSlice) Sort() SSlice {
+	sort.Sort(p)
+	return p
+}
+
+func keys3(m map[int32]uint32) (res SSlice) {
+	for k, _ := range m {
+		res = append(res, k)
+	}
+	return
 }

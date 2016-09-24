@@ -14,6 +14,7 @@
 package jvm
 
 import (
+	"enjarify-go/byteio"
 	"enjarify-go/dex"
 	"enjarify-go/jvm/cpool"
 	"enjarify-go/jvm/ir"
@@ -21,8 +22,9 @@ import (
 )
 
 type exceptInfo struct {
-	start, end, target ir.Instruction
-	ctype              uint16
+	start, end ir.Instruction
+	target     ir.Label
+	ctype      uint16
 }
 
 type IRWriter struct {
@@ -35,13 +37,11 @@ type IRWriter struct {
 
 	Instructions []ir.Instruction
 	excepts      []exceptInfo
-	Labels       map[uint32]*ir.Label
 
-	initial_args        []ir.RegKey
-	exception_redirects map[uint32]*ir.Label
+	initial_args []ir.RegKey
 
-	except_starts, except_ends, jump_targets map[ir.Instruction]bool
-	target_pred_counts                       map[ir.Instruction]uint32
+	exception_redirects map[uint32]ir.Instruction
+	target_pred_counts  map[ir.Label]uint32
 
 	numregs uint16 // will be set once registers are allocated (see registers.py)
 }
@@ -57,15 +57,11 @@ func newIRWriter(pool cpool.Pool, method dex.Method, types map[uint32]TypeInfo, 
 
 		nil,
 		nil,
-		make(map[uint32]*ir.Label),
 
 		nil,
-		make(map[uint32]*ir.Label),
 
-		make(map[ir.Instruction]bool),
-		make(map[ir.Instruction]bool),
-		make(map[ir.Instruction]bool),
-		make(map[ir.Instruction]uint32),
+		make(map[uint32]ir.Instruction),
+		make(map[ir.Label]uint32),
 
 		0xDEAD,
 	}
@@ -84,30 +80,28 @@ func (self *IRWriter) calcInitialArgs(nregs uint16, scalar_ptypes []scalars.T) {
 	self.initial_args = args
 }
 
-func (self *IRWriter) addExceptionRedirect(target uint32) *ir.Label {
+func (self *IRWriter) addExceptionRedirect(target uint32) ir.Label {
 	if val, ok := self.exception_redirects[target]; ok {
-		return val
+		return val.Label
 	}
-	self.exception_redirects[target] = ir.NewLabel_()
-	return self.exception_redirects[target]
+	self.exception_redirects[target] = ir.NewLabel(ir.EHANDLER, target)
+	return self.exception_redirects[target].Label
 }
 
 func (self *IRWriter) createBlock(pos uint32) *irBlock {
 	block := newIRBlock(self, pos)
 	self.iblocks[pos] = block
-	self.Labels[pos] = block.instructions[0].(*ir.Label)
 	return block
 }
 func (self *IRWriter) flatten() {
 	instrs := self.Instructions
-	// fmt.Printf("keys %v %v\n", keys1(self.iblocks).Sort(), keys2(self.exception_redirects).Sort())
 	for _, pos := range keys1(self.iblocks).Sort() {
 		if _, ok := self.exception_redirects[pos]; ok {
 			// check if we can put handler pop in front of block
 			if len(instrs) > 0 && !instrs[len(instrs)-1].Fallsthrough() {
 				instrs = append(instrs, self.exception_redirects[pos])
 				delete(self.exception_redirects, pos)
-				instrs = append(instrs, ir.NewOther(POP))
+				instrs = append(instrs, ir.NewOther(byteio.B(POP)))
 			} // if not, leave it in dict to be redirected later
 		}
 		// now add instructions for actual block
@@ -118,7 +112,7 @@ func (self *IRWriter) flatten() {
 	// in this case, just put them at the end with a goto back to the handler
 	for _, target := range keys2(self.exception_redirects).Sort() {
 		instrs = append(instrs, self.exception_redirects[target])
-		instrs = append(instrs, ir.NewOther(POP))
+		instrs = append(instrs, ir.NewOther((byteio.B(POP))))
 		instrs = append(instrs, ir.NewGoto(target))
 	}
 
@@ -126,37 +120,32 @@ func (self *IRWriter) flatten() {
 	self.iblocks = nil
 	self.exception_redirects = nil
 }
-func (self *IRWriter) ReplaceInstrs(replace map[ir.Instruction][]ir.Instruction) {
-	if len(replace) > 0 {
-		instructions := make([]ir.Instruction, 0, len(self.Instructions))
-		// for i, instr := range self.Instructions {
-		for _, instr := range self.Instructions {
-			if v, ok := replace[instr]; ok {
-				// fmt.Printf("Replace[%d]: %T %p %v\n", i, instr, instr, instr)
-				// fmt.Printf("-> %v\n", v)
-				instructions = append(instructions, v...)
-			} else {
-				instructions = append(instructions, instr)
-			}
-		}
+func (self *IRWriter) ReplaceInstrs(replace map[int][]ir.Instruction) {
+	if len(replace) == 0 {
+		return
+	}
 
-		// fmt.Printf("ReplaceInstrs m %v old %d new %d\n", self.method.MethodId, len(self.Instructions), len(instructions))
-		self.Instructions = instructions
-	} else {
-		// fmt.Printf("ReplaceInstrs m %v -------\n", self.method.MethodId)
+	old := make([]ir.Instruction, 0, len(self.Instructions))
+	self.Instructions, old = old, self.Instructions
+
+	for i, instr := range old {
+		if replacement, ok := replace[i]; ok {
+			self.Instructions = append(self.Instructions, replacement...)
+		} else {
+			self.Instructions = append(self.Instructions, instr)
+		}
 	}
 }
-func (self *IRWriter) CalcUpperBound() int32 {
+func (self *IRWriter) CalcUpperBound() int {
 	// Get an uppper bound on the size of the bytecode
-	size := int32(0)
+	size := 0
 	for _, instr := range self.Instructions {
-		if instr.HasBytecode() {
-			size += int32(len(instr.Bytecode()))
-		} else {
-			size += instr.(interface {
-				Max() int32
-			}).Max()
-		}
+		size += instr.UpperBound()
 	}
 	return size
+}
+
+func (self *IRWriter) IsTarget(target ir.Label) bool {
+	_, ok := self.target_pred_counts[target]
+	return ok
 }

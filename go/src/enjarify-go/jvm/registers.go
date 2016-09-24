@@ -14,6 +14,7 @@
 package jvm
 
 import (
+	"enjarify-go/byteio"
 	"enjarify-go/jvm/ir"
 	"enjarify-go/util"
 	"sort"
@@ -109,31 +110,32 @@ func (self *copySetsMap) copy() *copySetsMap {
 func CopyPropagation(irdata *IRWriter) {
 	instrs := irdata.Instructions
 
-	replace := make(map[ir.Instruction][]ir.Instruction)
-	single_pred_infos := make(map[ir.Instruction]*copySetsMap)
-	prev := ir.Instruction(nil)
+	replace := make(map[int][]ir.Instruction)
+	single_pred_infos := make(map[ir.Label]*copySetsMap)
+	prev := ir.Instruction{}
 
 	current := newCopySetsMap()
-	for _, instr := range instrs {
+	for i, instr := range instrs {
 		// reset all info when control flow is merged
-		if irdata.jump_targets[instr] {
+		if irdata.IsTarget(instr.Label) {
 			// try to use info if this was a single predecessor forward jump
-			if prev != nil && !prev.Fallsthrough() && irdata.target_pred_counts[instr] == 1 {
-				current = single_pred_infos[instr]
+			if i > 0 && !prev.Fallsthrough() && irdata.target_pred_counts[instr.Label] == 1 {
+				current = single_pred_infos[instr.Label]
 				if current == nil {
 					current = newCopySetsMap()
 				}
 			} else {
 				current = newCopySetsMap()
 			}
-		} else if ins, ok := instr.(*ir.RegAccess); ok {
+		} else if instr.Tag == ir.REGACCESS {
+			ins := instr.RegAccess
 			key := ins.RegKey
 			if ins.Store {
 				// check if previous instr was a load
-				if prev, ok := prev.(*ir.RegAccess); ok && !prev.Store {
+				if prev.Tag == ir.REGACCESS && !prev.RegAccess.Store {
 					if !current.move(key, prev.RegKey) {
-						replace[prev] = nil
-						replace[instr] = nil
+						replace[i-1] = nil
+						replace[i] = nil
 					}
 				} else {
 					current.clobber(key)
@@ -141,15 +143,15 @@ func CopyPropagation(irdata *IRWriter) {
 			} else {
 				root_key := current.load(key)
 				if key != root_key {
-					_, ok := replace[instr]
+					_, ok := replace[i]
 					util.Assert(!ok)
 					// replace with load from root register instead
-					replace[instr] = []ir.Instruction{ir.NewRegAccess(root_key.Reg, root_key.T, false)}
+					replace[i] = []ir.Instruction{ir.NewRegAccess(root_key.Reg, root_key.T, false)}
 				}
 			}
 		} else {
 			for _, target := range instr.Targets() {
-				label := irdata.Labels[target]
+				label := ir.Label{ir.DPOS, target}
 				if irdata.target_pred_counts[label] == 1 {
 					single_pred_infos[label] = current.copy()
 				}
@@ -162,50 +164,38 @@ func CopyPropagation(irdata *IRWriter) {
 	irdata.ReplaceInstrs(replace)
 }
 
-func isRemoveable(instr ir.Instruction) bool {
-	// can remove if load or const since we know there are no side effects
-	// note - instr may be nil
-	switch instr := instr.(type) {
-	case *ir.RegAccess:
-		return !instr.Store
-	case *ir.PrimConstant, *ir.OtherConstant:
-		return true
-	default:
-		return false
-	}
-}
-
 func RemoveUnusedRegisters(irdata *IRWriter) {
 	// Remove stores to registers that are not read from anywhere in the method
 	instrs := irdata.Instructions
 
 	used := make(map[ir.RegKey]bool)
 	for _, instr := range instrs {
-		if ins, ok := instr.(*ir.RegAccess); ok && !ins.Store {
-			used[ins.RegKey] = true
+		if instr.Tag == ir.REGACCESS && !instr.RegAccess.Store {
+			used[instr.RegKey] = true
 		}
 	}
 
-	replace := make(map[ir.Instruction][]ir.Instruction)
-	prev := ir.Instruction(nil)
-	for _, instr := range instrs {
-		if ins, ok := instr.(*ir.RegAccess); ok && !used[ins.RegKey] {
-			util.Assert(ins.Store)
+	replace := make(map[int][]ir.Instruction)
+	prev_was_replaceable := false
+	for i, instr := range instrs {
+		if instr.Tag == ir.REGACCESS && !used[instr.RegAccess.RegKey] {
+			util.Assert(instr.RegAccess.Store)
 			// if prev instruction is load or const, just remove it and the store
 			// otherwise, replace the store with a pop
-			if isRemoveable(prev) {
-				replace[prev] = nil
-				replace[instr] = nil
+			if prev_was_replaceable {
+				replace[i-1] = nil
+				replace[i] = nil
 			} else {
-				if ins.T.Wide() {
-					replace[instr] = []ir.Instruction{ir.NewOther(POP2)}
+				if instr.RegAccess.T.Wide() {
+					replace[i] = []ir.Instruction{ir.NewOther(byteio.B(POP2))}
 				} else {
-					replace[instr] = []ir.Instruction{ir.NewOther(POP)}
+					replace[i] = []ir.Instruction{ir.NewOther(byteio.B(POP))}
 				}
 			}
-
+			prev_was_replaceable = !instr.RegAccess.Store
+		} else {
+			prev_was_replaceable = instr.IsConstant()
 		}
-		prev = instr
 	}
 	irdata.ReplaceInstrs(replace)
 }
@@ -220,8 +210,8 @@ func SimpleAllocateRegisters(irdata *IRWriter) {
 	}
 	next := len(irdata.initial_args)
 
-	for _, instr := range instrs {
-		if instr, ok := instr.(*ir.RegAccess); ok {
+	for i, instr := range instrs {
+		if instr.Tag == ir.REGACCESS {
 			if _, ok := regmap[instr.RegKey]; !ok {
 				regmap[instr.RegKey] = next
 				next++
@@ -229,9 +219,10 @@ func SimpleAllocateRegisters(irdata *IRWriter) {
 					next++
 				}
 			}
-			_, ok = regmap[instr.RegKey]
+			_, ok := regmap[instr.RegKey]
 			util.Assert(ok)
-			instr.CalcBytecode(regmap[instr.RegKey])
+			instrs[i].Bytecode = instr.CalcBytecode(uint16(regmap[instr.RegKey]))
+			instrs[i].HasBC = true
 		}
 	}
 	irdata.numregs = uint16(next)
@@ -265,8 +256,8 @@ func SortAllocateRegisters(irdata *IRWriter) {
 
 	use_counts := make(map[ir.RegKey]int)
 	for _, instr := range instrs {
-		if ins, ok := instr.(*ir.RegAccess); ok {
-			use_counts[ins.RegKey] += 1
+		if instr.Tag == ir.REGACCESS {
+			use_counts[instr.RegKey] += 1
 		}
 	}
 
@@ -323,7 +314,7 @@ func SortAllocateRegisters(irdata *IRWriter) {
 					// swap register assignments
 					regs[i], regs[candidate_i] = candidate, target
 					// add move instructions at beginning of method
-					load := ir.RawRegAccess(i, target.T, false)
+					load := ir.RawRegAccess(uint16(i), target.T, false)
 					store := ir.NewRegAccess(target.Reg, target.T, true)
 					instrs = append([]ir.Instruction{load, store}, instrs...)
 					irdata.Instructions = instrs
@@ -342,9 +333,10 @@ func SortAllocateRegisters(irdata *IRWriter) {
 		}
 	}
 
-	for _, instr := range instrs {
-		if ins, ok := instr.(*ir.RegAccess); ok && !instr.HasBytecode() {
-			ins.CalcBytecode(regmap[ins.RegKey])
+	for i, instr := range instrs {
+		if instr.Tag == ir.REGACCESS && !instr.HasBC {
+			instrs[i].Bytecode = instr.RegAccess.CalcBytecode(uint16(regmap[instr.RegKey]))
+			instrs[i].HasBC = true
 		}
 	}
 }

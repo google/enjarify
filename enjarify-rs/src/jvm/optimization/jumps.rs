@@ -51,7 +51,6 @@ fn widen_if_necessary(ins: &mut ir::JvmInstruction, pos: u32, info: PosInfo) -> 
             }
         },
         ir::If(ref mut data) => {
-            // println!("pos {} target {} l2v {:?}", pos, data.target, info.0);
             !data.wide && {
                 let offset = info.offset(pos, data.target);
                 data.wide = offset != (offset as i16 as i32);
@@ -154,7 +153,7 @@ pub fn create_bytecode(irdata: IRWriter) -> (BString, Vec<(u16, u16, u16, u16)>)
     }
     assert!(stream.0.len() as u32 == endpos);
 
-    let execpts = irdata.excepts.into_iter().map(|(s, e, h, c)| {
+    let excepts = irdata.excepts.into_iter().map(|(s, e, h, c)| {
         // There appears to be a bug in the JVM where in rare cases, it throws
         // the exception at the address of the instruction _before_ the instruction
         // that actually caused the exception, triggering the wrong handler
@@ -166,5 +165,5 @@ pub fn create_bytecode(irdata: IRWriter) -> (BString, Vec<(u16, u16, u16, u16)>)
         (soff as u16, info.getlbl(e) as u16, info.getlbl(h) as u16, c)
     }).collect();
 
-    (stream.0, execpts)
+    (stream.0, excepts)
 }

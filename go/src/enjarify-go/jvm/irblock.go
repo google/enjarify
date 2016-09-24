@@ -30,6 +30,7 @@ var newArrayCodes = map[string]uint8{"[Z": 4, "[C": 5, "[F": 6, "[D": 7, "[B": 8
 
 // For generating IR instructions corresponding to a single Dalvik instruction
 type irBlock struct {
+	pos          uint32
 	type_data    TypeInfo
 	Pool         cpool.Pool
 	instructions []ir.Instruction
@@ -38,35 +39,36 @@ type irBlock struct {
 
 func newIRBlock(parent *IRWriter, pos uint32) *irBlock {
 	self := &irBlock{
+		pos,
 		parent.types[pos],
 		parent.pool,
-		[]ir.Instruction{ir.NewLabel(pos)},
+		[]ir.Instruction{ir.NewLabel(ir.DPOS, pos)},
 		parent.opts.DelayConsts,
 	}
 	return self
 }
 
 func (self *irBlock) other(bytecode string) {
-	self.add(ir.NewOther_(bytecode))
+	self.add(ir.NewOther(bytecode))
 }
 func (self *irBlock) U8(op uint8) {
-	self.add(ir.NewOther(op))
+	self.other(byteio.B(op))
 }
 func (self *irBlock) U8U8(op, x uint8) {
-	self.add(ir.NewOther(op, x))
+	self.other(byteio.BB(op, x))
 }
 func (self *irBlock) U8U16(op uint8, x uint16) {
-	self.add(ir.NewOther_(byteio.BH(op, x)))
+	self.other(byteio.BH(op, x))
 }
 
 // wide non iinc
 func (self *irBlock) U8U8U16(op, x uint8, y uint16) {
-	self.add(ir.NewOther_(byteio.BBH(op, x, y)))
+	self.other(byteio.BBH(op, x, y))
 }
 
 // invokeinterface
 func (self *irBlock) U8U16U8U8(op uint8, x uint16, y, z uint8) {
-	self.add(ir.NewOther_(byteio.BHBB(op, x, y, z)))
+	self.other(byteio.BHBB(op, x, y, z))
 }
 func (self *irBlock) add(jvm_instr ir.Instruction) {
 	self.instructions = append(self.instructions, jvm_instr)
@@ -218,24 +220,24 @@ func (self *irBlock) AddExceptLabels() (start_lbl, end_lbl ir.Instruction) {
 	e_ind := len(self.instructions)
 	// assume only Other instructions can throw
 	for s_ind < e_ind {
-		if _, ok := self.instructions[s_ind].(*ir.Other); ok {
+		if self.instructions[s_ind].Tag == ir.OTHER {
 			break
 		}
 		s_ind += 1
 	}
 	for s_ind < e_ind {
-		if _, ok := self.instructions[e_ind-1].(*ir.Other); ok {
+		if self.instructions[e_ind-1].Tag == ir.OTHER {
 			break
 		}
 		e_ind -= 1
 	}
 
-	start_lbl, end_lbl = ir.NewLabel_(), ir.NewLabel_()
+	start_lbl, end_lbl = ir.NewLabel(ir.ESTART, self.pos), ir.NewLabel(ir.EEND, self.pos)
 
-	s := append(self.instructions, nil)
+	s := append(self.instructions, ir.Instruction{})
 	copy(s[s_ind+1:], s[s_ind:])
 	s[s_ind] = start_lbl
-	s = append(s, nil)
+	s = append(s, ir.Instruction{})
 	copy(s[e_ind+1+1:], s[e_ind+1:])
 	s[e_ind+1] = end_lbl
 	self.instructions = s

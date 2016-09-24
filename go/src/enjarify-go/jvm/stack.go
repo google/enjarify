@@ -27,18 +27,19 @@ var pop2 = string([]byte{POP2})
 type visitorInterface interface {
 	reset()
 	visitReturn()
-	visit(instr ir.Instruction)
+	visit(i int, instr ir.Instruction)
 }
 
 func visitLinearCode(irdata *IRWriter, visitor visitorInterface) {
 	// Visit linear sections of code, pessimistically treating all exception
 	// handler ranges as jumps.
 	except_level := 0
-	for _, instr := range irdata.Instructions {
-		if _, ok := irdata.except_starts[instr]; ok {
+	for i, instr := range irdata.Instructions {
+		lbl := instr.Label
+		if lbl.Tag == ir.ESTART {
 			except_level += 1
 			visitor.reset()
-		} else if _, ok := irdata.except_ends[instr]; ok {
+		} else if lbl.Tag == ir.EEND {
 			except_level -= 1
 		}
 
@@ -46,55 +47,49 @@ func visitLinearCode(irdata *IRWriter, visitor visitorInterface) {
 			continue
 		}
 
-		_, ok := irdata.jump_targets[instr]
-		switch instr.(type) {
-		case *ir.Goto, *ir.If, *ir.Switch:
-			ok = true
-		}
-
-		if ok {
+		if irdata.IsTarget(lbl) || instr.IsJump() {
 			visitor.reset()
 		} else if !instr.Fallsthrough() {
 			visitor.visitReturn()
 		} else {
-			visitor.visit(instr)
+			visitor.visit(i, instr)
 		}
 	}
 	util.Assert(except_level == 0)
 }
 
 type ConstInliner struct {
-	uses         map[ir.Instruction]ir.Instruction
-	notmultiused map[ir.Instruction]bool
-	current      map[ir.RegKey]ir.Instruction
+	uses         map[int]int
+	notmultiused map[int]bool
+	current      map[ir.RegKey]int
 }
 
 func newConstInliner() *ConstInliner {
-	return &ConstInliner{make(map[ir.Instruction]ir.Instruction), make(map[ir.Instruction]bool), make(map[ir.RegKey]ir.Instruction)}
+	return &ConstInliner{make(map[int]int), make(map[int]bool), make(map[ir.RegKey]int)}
 }
 
-func (self *ConstInliner) reset() { self.current = make(map[ir.RegKey]ir.Instruction) }
+func (self *ConstInliner) reset() { self.current = make(map[ir.RegKey]int) }
 func (self *ConstInliner) visitReturn() {
 	for _, v := range self.current {
 		self.notmultiused[v] = true
 	}
 	self.reset()
 }
-func (self *ConstInliner) visit(instr ir.Instruction) {
-	if ins, ok := instr.(*ir.RegAccess); ok {
-		key := ins.RegKey
-		if ins.Store {
+func (self *ConstInliner) visit(i int, instr ir.Instruction) {
+	if instr.Tag == ir.REGACCESS {
+		key := instr.RegKey
+		if instr.RegAccess.Store {
 			if v, ok := self.current[key]; ok {
 				self.notmultiused[v] = true
 			}
-			self.current[key] = instr
+			self.current[key] = i
 		} else if v, ok := self.current[key]; ok {
 			// if currently used 0, mark it used once
 			// if used once already, mark it as multiused
 			if _, ok := self.uses[v]; ok {
 				delete(self.current, key)
 			} else {
-				self.uses[v] = instr
+				self.uses[v] = i
 			}
 		}
 	}
@@ -111,19 +106,13 @@ func InlineConsts(irdata *IRWriter) {
 	visitor := newConstInliner()
 	visitLinearCode(irdata, visitor)
 
-	replace := make(map[ir.Instruction][]ir.Instruction)
-	for i, ins2 := range instrs[1:] {
+	replace := make(map[int][]ir.Instruction)
+	for i, _ := range instrs[1:] {
 		ins1 := instrs[i]
-
-		ok := false
-		switch ins1.(type) {
-		case *ir.PrimConstant, *ir.OtherConstant:
-			ok = true
-		}
-		if visitor.notmultiused[ins2] && ok {
-			replace[ins1] = nil
-			replace[ins2] = nil
-			if v, ok := visitor.uses[ins2]; ok {
+		if visitor.notmultiused[i+1] && ins1.IsConstant() {
+			replace[i] = nil
+			replace[i+1] = nil
+			if v, ok := visitor.uses[i+1]; ok {
 				replace[v] = []ir.Instruction{ins1}
 			}
 		}
@@ -133,17 +122,18 @@ func InlineConsts(irdata *IRWriter) {
 }
 
 type StoreLoadPruner struct {
-	current map[ir.RegKey][2]ir.Instruction
+	current map[ir.RegKey][2]int
+	lastInd int
 	last    *ir.RegAccess
-	removed map[ir.Instruction]bool
+	removed map[int]bool
 }
 
 func newStoreLoadPruner() *StoreLoadPruner {
-	return &StoreLoadPruner{make(map[ir.RegKey][2]ir.Instruction), nil, make(map[ir.Instruction]bool)}
+	return &StoreLoadPruner{make(map[ir.RegKey][2]int), -1, nil, make(map[int]bool)}
 }
 
 func (self *StoreLoadPruner) reset() {
-	self.current = make(map[ir.RegKey][2]ir.Instruction)
+	self.current = make(map[ir.RegKey][2]int)
 	self.last = nil
 }
 func (self *StoreLoadPruner) visitReturn() {
@@ -153,24 +143,25 @@ func (self *StoreLoadPruner) visitReturn() {
 	}
 	self.reset()
 }
-func (self *StoreLoadPruner) visit(instr ir.Instruction) {
-	if ins, ok := instr.(*ir.RegAccess); ok {
-		key := ins.RegKey
-		if ins.Store {
+func (self *StoreLoadPruner) visit(i int, instr ir.Instruction) {
+	if instr.Tag == ir.REGACCESS {
+		key := instr.RegKey
+		if instr.RegAccess.Store {
 			if pair, ok := self.current[key]; ok {
 				self.removed[pair[0]] = true
 				self.removed[pair[1]] = true
 				delete(self.current, key)
 			}
-			self.last = ins
+			self.lastInd = i
+			self.last = &instr.RegAccess
 		} else {
 			delete(self.current, key)
 			if self.last != nil && self.last.RegKey == key {
-				self.current[key] = [2]ir.Instruction{self.last, instr}
+				self.current[key] = [2]int{self.lastInd, i}
 			}
 			self.last = nil
 		}
-	} else if _, ok := instr.(*ir.Label); !ok {
+	} else if instr.Tag != ir.LABEL {
 		self.last = nil
 	}
 }
@@ -183,7 +174,7 @@ func PruneStoreLoads(irdata *IRWriter) {
 	visitor := newStoreLoadPruner()
 	visitLinearCode(irdata, visitor)
 
-	replace := make(map[ir.Instruction][]ir.Instruction)
+	replace := make(map[int][]ir.Instruction)
 	for k, _ := range visitor.removed {
 		replace[k] = nil
 	}
@@ -279,23 +270,17 @@ func Dup2ize(irdata *IRWriter) {
 	for i, instr := range instrs {
 		// if not linear section of bytecode, reset everything. Exceptions are ok
 		// since they clear the stack, but jumps obviously aren't.
-		_, ok := irdata.jump_targets[instr]
-		switch instr.(type) {
-		case *ir.If, *ir.Switch:
-			ok = true
-		}
-
-		if ok {
+		if instr.IsJump() || irdata.IsTarget(instr.Label) {
 			for _, v := range current {
 				ranges = append(ranges, v)
 			}
 			current = map[ir.RegKey]*UseRange{}
 		}
 
-		if ins, ok := instr.(*ir.RegAccess); ok {
-			key := ins.RegKey
+		if instr.Tag == ir.REGACCESS {
+			key := instr.RegKey
 			if !key.T.Wide() {
-				if ins.Store {
+				if instr.RegAccess.Store {
 					if v, ok := current[key]; ok {
 						ranges = append(ranges, v)
 						delete(current, key)
@@ -309,8 +294,8 @@ func Dup2ize(irdata *IRWriter) {
 			}
 		}
 
-		if ins, ok := instr.(*ir.Label); ok {
-			at_head = ins.Haspos
+		if instr.Tag == ir.LABEL {
+			at_head = instr.Label.Tag == ir.DPOS
 		} else {
 			at_head = false
 		}
@@ -340,13 +325,13 @@ func Dup2ize(irdata *IRWriter) {
 		ranges = newranges.Sort()
 	}
 
-	replace := make(map[ir.Instruction][]ir.Instruction)
+	replace := make(map[int][]ir.Instruction)
 	for _, ur := range chosen {
 		gen := genDups(len(ur.uses), 0)
 		for i, pos := range ur.uses {
 			ops := []ir.Instruction{}
 			for _, bytecode := range gen[i] {
-				ops = append(ops, ir.NewOther_(bytecode))
+				ops = append(ops, ir.NewOther(bytecode))
 			}
 
 			// remember to include initial load!
@@ -354,7 +339,7 @@ func Dup2ize(irdata *IRWriter) {
 				ops = append([]ir.Instruction{instrs[pos]}, ops...)
 			}
 
-			replace[instrs[pos]] = ops
+			replace[pos] = ops
 		}
 	}
 
