@@ -175,7 +175,7 @@ func PruneStoreLoads(irdata *IRWriter) {
 	visitor := newStoreLoadPruner()
 	visitLinearCode(irdata, visitor)
 
-	replace := make(map[int][]ir.Instruction)
+	replace := make(map[int][]ir.Instruction, len(visitor.removed))
 	for k, _ := range visitor.removed {
 		replace[k] = nil
 	}

@@ -195,7 +195,7 @@ func parseInstruction(dex *DexFile, insns_start_pos uint32, shorts []uint16, pos
 		size := uint32(shorts[pos+1])
 		st := dex.stream(insns_start_pos + pos*2 + 4)
 
-		instr.Switchdata = make(map[uint32]uint32)
+		instr.Switchdata = make(map[uint32]uint32, size)
 		if word == 0x100 { //packed
 			first_key := st.U32()
 			for i := uint32(0); i < size; i++ {

@@ -202,7 +202,7 @@ func (self *irBlock) If(op byte, target uint32) {
 	self.add(ir.NewIf(op, target))
 }
 func (self *irBlock) Switch(def uint32, jumps map[uint32]uint32) {
-	jumps2 := make(map[int32]uint32)
+	jumps2 := make(map[int32]uint32, len(jumps))
 	for k, v := range jumps {
 		if v != def {
 			jumps2[int32(k)] = v

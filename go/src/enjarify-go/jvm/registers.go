@@ -47,7 +47,7 @@ func (self *copySet) remove(key ir.RegKey) {
 }
 func (self *copySet) copy() *copySet {
 	new := newCopySet(self.root)
-	new.set = make(map[ir.RegKey]bool)
+	new.set = make(map[ir.RegKey]bool, len(self.set))
 	for k, v := range self.set {
 		new.set[k] = v
 	}

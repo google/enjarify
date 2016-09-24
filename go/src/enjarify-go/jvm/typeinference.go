@@ -130,7 +130,7 @@ func isMathThrowOp(opcode uint8) bool {
 }
 
 func pruneHandlers(instr_d map[uint32]dex.Instruction, all_handlers map[uint32][]dex.CatchItem) map[uint32][]dex.CatchItem {
-	result := make(map[uint32][]dex.CatchItem)
+	result := make(map[uint32][]dex.CatchItem, len(all_handlers))
 	for pos, handlers := range all_handlers {
 		instr := instr_d[pos]
 		if !dex.PRUNED_THROW_TYPES[instr.Type] {
@@ -144,7 +144,7 @@ func pruneHandlers(instr_d map[uint32]dex.Instruction, all_handlers map[uint32][
 			continue
 		}
 
-		types := make(map[string]bool)
+		types := make(map[string]bool, len(handlers))
 		for _, item := range handlers {
 			// if multiple handlers with same catch type, only include the first
 			if !types[item.Type] {
@@ -232,7 +232,7 @@ func doInference(method dex.Method, instr_d map[uint32]dex.Instruction) (map[uin
 	}
 
 	all_handlers = pruneHandlers(instr_d, all_handlers)
-	types := make(map[uint32]TypeInfo)
+	types := make(map[uint32]TypeInfo, len(instr_d))
 	types[0] = fromParams(method, code.Nregs)
 	dirty := map[uint32]bool{0: true}
 

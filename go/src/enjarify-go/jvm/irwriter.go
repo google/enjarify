@@ -53,7 +53,7 @@ func newIRWriter(pool cpool.Pool, method dex.Method, types map[uint32]TypeInfo, 
 		types,
 		opts,
 
-		make(map[uint32]*irBlock),
+		make(map[uint32]*irBlock, len(method.Code.Bytecode)),
 
 		nil,
 		nil,

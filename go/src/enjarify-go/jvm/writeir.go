@@ -153,7 +153,7 @@ func visit(method dex.Method, dex_ *dex.DexFile, instr_d map[uint32]dex.Instruct
 		block.Load(instr.Ra, scalars.INT)
 		switchdata := instr_d[instr.B].Switchdata
 		def := instr.Pos2
-		jumps := make(map[uint32]uint32)
+		jumps := make(map[uint32]uint32, len(switchdata))
 		for k, offset := range switchdata {
 			jumps[k] = offset + instr.Pos
 		}
@@ -322,7 +322,7 @@ func visit(method dex.Method, dex_ *dex.DexFile, instr_d map[uint32]dex.Instruct
 
 func writeBytecode(pool cpool.Pool, method dex.Method, opts Options) *IRWriter {
 	code := method.Code
-	instr_d := make(map[uint32]dex.Instruction)
+	instr_d := make(map[uint32]dex.Instruction, len(code.Bytecode))
 	for _, ins := range code.Bytecode {
 		instr_d[ins.Pos] = ins
 	}
