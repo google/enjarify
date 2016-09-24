@@ -20,6 +20,7 @@ import (
 )
 
 func calcMinimumPositions(instrs []ir.Instruction) (res []uint32, pos uint32) {
+	res = make([]uint32, 0, len(instrs))
 	for _, ins := range instrs {
 		old := pos
 		pos += ins.MinLen(old)
@@ -195,7 +196,7 @@ func createBytecode(irdata *IRWriter) (string, []string) {
 	}
 	util.Assert(int(endpos) == stream.Len())
 
-	excepts := []string{}
+	excepts := make([]string, 0, len(irdata.excepts))
 	for _, item := range irdata.excepts {
 		// There appears to be a bug in the JVM where in rare cases, it throws
 		// the exception at the address of the instruction _before_ the instruction

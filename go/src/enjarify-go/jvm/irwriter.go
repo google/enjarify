@@ -94,7 +94,12 @@ func (self *IRWriter) createBlock(pos uint32) *irBlock {
 	return block
 }
 func (self *IRWriter) flatten() {
-	instrs := self.Instructions
+	size := 3 * len(self.exception_redirects)
+	for _, block := range self.iblocks {
+		size += len(block.instructions)
+	}
+
+	instrs := make([]ir.Instruction, 0, size)
 	for _, pos := range keys1(self.iblocks).Sort() {
 		if _, ok := self.exception_redirects[pos]; ok {
 			// check if we can put handler pop in front of block
