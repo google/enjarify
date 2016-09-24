@@ -19,7 +19,6 @@ import (
 	"enjarify-go/jvm/cpool"
 	"enjarify-go/jvm/errors"
 	"enjarify-go/jvm/ir"
-	"fmt"
 	"strings"
 )
 
@@ -28,11 +27,9 @@ func getCodeIR(pool cpool.Pool, method dex.Method, opts Options) *IRWriter {
 		return nil
 	}
 
-	fmt.Printf("get code ir %v\n", method.MethodId)
 	irdata := writeBytecode(pool, method, opts)
 
 	if opts.InlineConsts {
-		fmt.Printf("inline consts\n")
 		InlineConsts(irdata)
 	}
 
@@ -56,13 +53,10 @@ func getCodeIR(pool cpool.Pool, method dex.Method, opts Options) *IRWriter {
 	}
 
 	if opts.SortRegisters {
-		fmt.Printf("sort regs\n")
 		SortAllocateRegisters(irdata)
 	} else {
-		fmt.Printf("simple regs\n")
 		SimpleAllocateRegisters(irdata)
 	}
-	fmt.Printf("returning ir\n")
 
 	return irdata
 }
@@ -104,9 +98,9 @@ func finishCodeAttrs(pool cpool.Pool, code_irs []*IRWriter, opts Options) map[de
 
 		// If there's space left in the constant pool, allocate constants used by short methods
 		for _, irw := range irs {
-			for _, instr := range irw.Instructions {
+			for i, instr := range irw.Instructions {
 				if instr.Tag == ir.PRIMCONSTANT {
-					instr.FixWithPool(pool, &instr)
+					instr.FixWithPool(pool, &irw.Instructions[i])
 				}
 			}
 		}
@@ -120,9 +114,7 @@ func finishCodeAttrs(pool cpool.Pool, code_irs []*IRWriter, opts Options) map[de
 }
 
 func writeCodeAttributeTail(pool cpool.Pool, irdata *IRWriter, opts Options) string {
-	fmt.Printf("optimize jumps\n")
 	optimizeJumps(irdata)
-	fmt.Printf("create bytecode %v\n", irdata.method.MethodId)
 	bytecode, excepts := createBytecode(irdata)
 
 	stream := byteio.NewWriter()

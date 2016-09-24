@@ -37,6 +37,10 @@ func Read(name string) string {
 	return string(data)
 }
 
+func Write(name string, data string) {
+	check(ioutil.WriteFile(name, []byte(data), os.ModePerm))
+}
+
 func translate(opts jvm.Options, dexs ...string) (map[string]string, []string, map[string]error) {
 	classes := make(map[string]string)
 	errors := make(map[string]error)

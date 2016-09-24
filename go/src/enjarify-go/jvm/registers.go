@@ -178,18 +178,20 @@ func RemoveUnusedRegisters(irdata *IRWriter) {
 	replace := make(map[int][]ir.Instruction)
 	prev_was_replaceable := false
 	for i, instr := range instrs {
-		if instr.Tag == ir.REGACCESS && !used[instr.RegAccess.RegKey] {
-			util.Assert(instr.RegAccess.Store)
-			// if prev instruction is load or const, just remove it and the store
-			// otherwise, replace the store with a pop
-			if prev_was_replaceable {
-				replace[i-1] = nil
-				replace[i] = nil
-			} else {
-				if instr.RegAccess.T.Wide() {
-					replace[i] = []ir.Instruction{ir.NewOther(byteio.B(POP2))}
+		if instr.Tag == ir.REGACCESS {
+			if !used[instr.RegAccess.RegKey] {
+				util.Assert(instr.RegAccess.Store)
+				// if prev instruction is load or const, just remove it and the store
+				// otherwise, replace the store with a pop
+				if prev_was_replaceable {
+					replace[i-1] = nil
+					replace[i] = nil
 				} else {
-					replace[i] = []ir.Instruction{ir.NewOther(byteio.B(POP))}
+					if instr.RegAccess.T.Wide() {
+						replace[i] = []ir.Instruction{ir.NewOther(byteio.B(POP2))}
+					} else {
+						replace[i] = []ir.Instruction{ir.NewOther(byteio.B(POP))}
+					}
 				}
 			}
 			prev_was_replaceable = !instr.RegAccess.Store
@@ -215,7 +217,7 @@ func SimpleAllocateRegisters(irdata *IRWriter) {
 			if _, ok := regmap[instr.RegKey]; !ok {
 				regmap[instr.RegKey] = next
 				next++
-				if instr.T.Wide() {
+				if instr.RegAccess.T.Wide() {
 					next++
 				}
 			}

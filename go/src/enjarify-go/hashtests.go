@@ -28,25 +28,30 @@ func hash(s string) string {
 
 func hashTests() {
 	fullhash := ""
-	// for i := 1; i < 8; i++ {
-	for i := 3; i < 8; i++ {
-		name := fmt.Sprintf("test%d", i)
+	for test := 1; test < 8; test++ {
+		name := fmt.Sprintf("test%d", test)
 		fmt.Print(name + "\n")
 		dir := path.Join("..", "tests", name)
 		rawdex := Read(path.Join(dir, "classes.dex"))
 
 		for bits := 0; bits < 256; bits++ {
+
 			opts := jvm.Options{bits&1 == 1, bits&2 == 2, bits&4 == 4, bits&8 == 8, bits&16 == 16, bits&32 == 32, bits&64 == 64, bits&128 == 128}
 			classes, ordkeys, errors := translate(opts, rawdex)
 			util.Assert(len(errors) == 0)
 
 			for _, k := range ordkeys {
+				// for i, k := range ordkeys {
 				cls := classes[k]
+
+				// fname := fmt.Sprintf("../../rsout/%d_%d_%d.class", test, bits, i)
+				// Write(fname, cls)
+
 				fmt.Printf("%08b %x\n", uint8(bits), hash(cls))
 				fullhash = hash(fullhash + cls)
 			}
 		}
 	}
 
-	fmt.Printf("done!\nFinal hash: %x", hash(fullhash))
+	fmt.Printf("done!\nFinal hash: %x\n", hash(fullhash))
 }
