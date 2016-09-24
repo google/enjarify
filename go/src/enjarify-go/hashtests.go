@@ -27,6 +27,7 @@ func hash(s string) string {
 }
 
 func hashTests() {
+	// defer profile.Start().Stop()
 	fullhash := ""
 	for test := 1; test < 8; test++ {
 		name := fmt.Sprintf("test%d", test)

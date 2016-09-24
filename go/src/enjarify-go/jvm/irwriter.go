@@ -133,19 +133,19 @@ func (self *IRWriter) ReplaceInstrs(replace map[int][]ir.Instruction) {
 	old := make([]ir.Instruction, 0, len(self.Instructions))
 	self.Instructions, old = old, self.Instructions
 
-	for i, instr := range old {
+	for i := range old {
 		if replacement, ok := replace[i]; ok {
 			self.Instructions = append(self.Instructions, replacement...)
 		} else {
-			self.Instructions = append(self.Instructions, instr)
+			self.Instructions = append(self.Instructions, old[i])
 		}
 	}
 }
 func (self *IRWriter) CalcUpperBound() int {
 	// Get an uppper bound on the size of the bytecode
 	size := 0
-	for _, instr := range self.Instructions {
-		size += instr.UpperBound()
+	for i := range self.Instructions {
+		size += self.Instructions[i].UpperBound()
 	}
 	return size
 }

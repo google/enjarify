@@ -370,7 +370,8 @@ func writeBytecode(pool cpool.Pool, method dex.Method, opts Options) *IRWriter {
 	writer.flatten()
 
 	// find jump targets (in addition to exception handler targets)
-	for _, instr := range writer.Instructions {
+	for i := range writer.Instructions {
+		instr := &writer.Instructions[i]
 		for _, target := range instr.Targets() {
 			writer.target_pred_counts[ir.Label{ir.DPOS, target}]++
 		}

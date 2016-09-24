@@ -98,7 +98,8 @@ func finishCodeAttrs(pool cpool.Pool, code_irs []*IRWriter, opts Options) map[de
 
 		// If there's space left in the constant pool, allocate constants used by short methods
 		for _, irw := range irs {
-			for i, instr := range irw.Instructions {
+			for i := range irw.Instructions {
+				instr := &irw.Instructions[i]
 				if instr.Tag == ir.PRIMCONSTANT {
 					instr.FixWithPool(pool, &irw.Instructions[i])
 				}

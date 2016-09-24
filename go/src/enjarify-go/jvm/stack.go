@@ -27,14 +27,15 @@ var pop2 = string([]byte{POP2})
 type visitorInterface interface {
 	reset()
 	visitReturn()
-	visit(i int, instr ir.Instruction)
+	visit(i int, instr *ir.Instruction)
 }
 
 func visitLinearCode(irdata *IRWriter, visitor visitorInterface) {
 	// Visit linear sections of code, pessimistically treating all exception
 	// handler ranges as jumps.
 	except_level := 0
-	for i, instr := range irdata.Instructions {
+	for i := range irdata.Instructions {
+		instr := &irdata.Instructions[i]
 		lbl := instr.Label
 		if lbl.Tag == ir.ESTART {
 			except_level += 1
@@ -75,7 +76,7 @@ func (self *ConstInliner) visitReturn() {
 	}
 	self.reset()
 }
-func (self *ConstInliner) visit(i int, instr ir.Instruction) {
+func (self *ConstInliner) visit(i int, instr *ir.Instruction) {
 	if instr.Tag == ir.REGACCESS {
 		key := instr.RegKey
 		if instr.RegAccess.Store {
@@ -107,13 +108,13 @@ func InlineConsts(irdata *IRWriter) {
 	visitLinearCode(irdata, visitor)
 
 	replace := make(map[int][]ir.Instruction)
-	for i, _ := range instrs[1:] {
-		ins1 := instrs[i]
+	for i := range instrs[1:] {
+		ins1 := &instrs[i]
 		if visitor.notmultiused[i+1] && ins1.IsConstant() {
 			replace[i] = nil
 			replace[i+1] = nil
 			if v, ok := visitor.uses[i+1]; ok {
-				replace[v] = []ir.Instruction{ins1}
+				replace[v] = []ir.Instruction{*ins1}
 			}
 		}
 	}
@@ -143,7 +144,7 @@ func (self *StoreLoadPruner) visitReturn() {
 	}
 	self.reset()
 }
-func (self *StoreLoadPruner) visit(i int, instr ir.Instruction) {
+func (self *StoreLoadPruner) visit(i int, instr *ir.Instruction) {
 	if instr.Tag == ir.REGACCESS {
 		key := instr.RegKey
 		if instr.RegAccess.Store {
@@ -267,7 +268,8 @@ func Dup2ize(irdata *IRWriter) {
 	ranges := URSlice{}
 	current := map[ir.RegKey]*UseRange{}
 	at_head := false
-	for i, instr := range instrs {
+	for i := range instrs {
+		instr := &instrs[i]
 		// if not linear section of bytecode, reset everything. Exceptions are ok
 		// since they clear the stack, but jumps obviously aren't.
 		if instr.IsJump() || irdata.IsTarget(instr.Label) {

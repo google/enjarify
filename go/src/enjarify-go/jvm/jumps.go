@@ -21,9 +21,9 @@ import (
 
 func calcMinimumPositions(instrs []ir.Instruction) (res []uint32, pos uint32) {
 	res = make([]uint32, 0, len(instrs))
-	for _, ins := range instrs {
+	for i := range instrs {
 		old := pos
-		pos += ins.MinLen(old)
+		pos += instrs[i].MinLen(old)
 		res = append(res, old)
 	}
 	return
@@ -74,7 +74,8 @@ func optimizeJumps(irdata *IRWriter) {
 	instrs := irdata.Instructions
 
 	lblToVind := make(map[ir.Label]int)
-	for i, ins := range instrs {
+	for i := range instrs {
+		ins := &instrs[i]
 		if ins.Tag == ir.LABEL {
 			lblToVind[ins.Label] = i
 		}
@@ -86,7 +87,7 @@ func optimizeJumps(irdata *IRWriter) {
 		mins, _ := calcMinimumPositions(instrs)
 		info := PosInfo{lblToVind, mins}
 
-		for i, _ := range instrs {
+		for i := range instrs {
 			pos := mins[i]
 			temp := !widenIfNecessary(&instrs[i], pos, info)
 			done = done && temp
@@ -106,7 +107,8 @@ func createBytecode(irdata *IRWriter) (string, []string) {
 	instrs := irdata.Instructions
 
 	lblToVind := make(map[ir.Label]int)
-	for i, ins := range instrs {
+	for i := range instrs {
+		ins := &instrs[i]
 		if ins.Tag == ir.LABEL {
 			lblToVind[ins.Label] = i
 		}
@@ -117,8 +119,8 @@ func createBytecode(irdata *IRWriter) (string, []string) {
 
 	stream := byteio.NewWriter()
 
-	// parts := make([]string, len(instrs))
-	for i, ins := range instrs {
+	for i := range instrs {
+		ins := &instrs[i]
 		pos := positions[i]
 		switch ins.Tag {
 		case ir.GOTO_TAG:

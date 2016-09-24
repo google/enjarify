@@ -112,10 +112,11 @@ func CopyPropagation(irdata *IRWriter) {
 
 	replace := make(map[int][]ir.Instruction)
 	single_pred_infos := make(map[ir.Label]*copySetsMap)
-	prev := ir.Instruction{}
+	prev := (*ir.Instruction)(nil)
 
 	current := newCopySetsMap()
-	for i, instr := range instrs {
+	for i := range instrs {
+		instr := &instrs[i]
 		// reset all info when control flow is merged
 		if irdata.IsTarget(instr.Label) {
 			// try to use info if this was a single predecessor forward jump
@@ -169,7 +170,8 @@ func RemoveUnusedRegisters(irdata *IRWriter) {
 	instrs := irdata.Instructions
 
 	used := make(map[ir.RegKey]bool)
-	for _, instr := range instrs {
+	for i := range instrs {
+		instr := &instrs[i]
 		if instr.Tag == ir.REGACCESS && !instr.RegAccess.Store {
 			used[instr.RegKey] = true
 		}
@@ -177,7 +179,8 @@ func RemoveUnusedRegisters(irdata *IRWriter) {
 
 	replace := make(map[int][]ir.Instruction)
 	prev_was_replaceable := false
-	for i, instr := range instrs {
+	for i := range instrs {
+		instr := &instrs[i]
 		if instr.Tag == ir.REGACCESS {
 			if !used[instr.RegAccess.RegKey] {
 				util.Assert(instr.RegAccess.Store)
@@ -212,7 +215,8 @@ func SimpleAllocateRegisters(irdata *IRWriter) {
 	}
 	next := len(irdata.initial_args)
 
-	for i, instr := range instrs {
+	for i := range instrs {
+		instr := &instrs[i]
 		if instr.Tag == ir.REGACCESS {
 			if _, ok := regmap[instr.RegKey]; !ok {
 				regmap[instr.RegKey] = next
@@ -257,7 +261,8 @@ func SortAllocateRegisters(irdata *IRWriter) {
 	instrs := irdata.Instructions
 
 	use_counts := make(map[ir.RegKey]int)
-	for _, instr := range instrs {
+	for i := range instrs {
+		instr := &instrs[i]
 		if instr.Tag == ir.REGACCESS {
 			use_counts[instr.RegKey] += 1
 		}
@@ -335,10 +340,11 @@ func SortAllocateRegisters(irdata *IRWriter) {
 		}
 	}
 
-	for i, instr := range instrs {
+	for i := range instrs {
+		instr := &instrs[i]
 		if instr.Tag == ir.REGACCESS && !instr.HasBC {
-			instrs[i].Bytecode = instr.RegAccess.CalcBytecode(uint16(regmap[instr.RegKey]))
-			instrs[i].HasBC = true
+			instr.Bytecode = instr.RegAccess.CalcBytecode(uint16(regmap[instr.RegKey]))
+			instr.HasBC = true
 		}
 	}
 }
