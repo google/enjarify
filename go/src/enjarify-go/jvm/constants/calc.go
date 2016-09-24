@@ -17,7 +17,6 @@ import (
 	"enjarify-go/jvm/scalars"
 	"enjarify-go/util"
 	"math/big"
-	"strings"
 )
 
 // Calculate a sequence of bytecode instructions to generate the given constant
@@ -36,40 +35,62 @@ func normalizeDouble(x uint64) uint64 {
 	}
 	return x
 }
-func _calcInt(x int32) string {
+
+type buffer []byte
+
+func (self *buffer) append(s string)  { *self = append(*self, s...) }
+func (self *buffer) appendb(s []byte) { *self = append(*self, s...) }
+func (self *buffer) push(s ...byte)   { *self = append(*self, s...) }
+
+func (self *buffer) calcInt(x int32) {
 	if res, ok := INTS[x]; ok {
-		return res
+		self.append(res)
+		return
 	}
 	// max required - 10 bytes
 	// (high << 16) ^ low
 	low := int32(int16(x))
 	high := (x ^ low) >> 16
 	if low == 0 {
-		return _calcInt(high) + _calcInt(16) + string([]byte{ISHL})
+		self.calcInt(high)
+		self.calcInt(16)
+		self.push(ISHL)
+	} else {
+		self.calcInt(high)
+		self.calcInt(16)
+		self.push(ISHL)
+		self.calcInt(low)
+		self.push(IXOR)
 	}
-	return _calcInt(high) + _calcInt(16) + string([]byte{ISHL}) + _calcInt(low) + string([]byte{IXOR})
 }
-func _calcLong(x int64) string {
+func (self *buffer) calcLong(x int64) {
 	if res, ok := LONGS[x]; ok {
-		return res
+		self.append(res)
+		return
 	}
 	// max required - 26 bytes
 	// (high << 32) ^ low
 	low := int32(x)
 	high := int32((x ^ int64(low)) >> 32)
 	if high == 0 {
-		return _calcInt(low) + string([]byte{I2L})
+		self.calcInt(low)
+		self.push(I2L)
+		return
 	}
-	result := _calcInt(high) + string([]byte{I2L}) + _calcInt(32) + string([]byte{LSHL})
+	self.calcInt(high)
+	self.push(I2L)
+	self.calcInt(32)
+	self.push(LSHL)
 	if low != 0 {
-		result += _calcInt(low) + string([]byte{I2L, LXOR})
+		self.calcInt(low)
+		self.push(I2L, LXOR)
 	}
-	return result
 }
 
-func _calcFloat(x uint64) string {
+func (self *buffer) calcFloat(x uint64) {
 	if res, ok := FLOATS[x]; ok {
-		return res
+		self.append(res)
+		return
 	}
 	// max required - 27 bytes
 	exponent := int32((x>>23)&0xFF) - 127
@@ -91,23 +112,26 @@ func _calcFloat(x uint64) string {
 		exponent = -exponent
 	}
 
-	exponent_parts := []string{}
+	exponent_part := buffer{}
 	for exponent >= 63 { // max 2 iterations since -149 <= exp <= 104
-		exponent_parts = append(exponent_parts, string([]byte{LCONST_1, ICONST_M1, LSHL, L2F, ex_combine_op}))
+		exponent_part.push(LCONST_1, ICONST_M1, LSHL, L2F, ex_combine_op)
 		mantissa = -mantissa
 		exponent -= 63
 	}
 	if exponent > 0 {
-		exponent_parts = append(exponent_parts, string([]byte{LCONST_1}))
-		exponent_parts = append(exponent_parts, _calcInt(exponent))
-		exponent_parts = append(exponent_parts, string([]byte{LSHL, L2F, ex_combine_op}))
+		exponent_part.push(LCONST_1)
+		exponent_part.calcInt(exponent)
+		exponent_part.push(LSHL, L2F, ex_combine_op)
 	}
-	return _calcInt(mantissa) + string([]byte{I2F}) + strings.Join(exponent_parts, "")
+	self.calcInt(mantissa)
+	self.push(I2F)
+	self.appendb(exponent_part)
 }
 
-func _calcDouble(x uint64) string {
+func (self *buffer) calcDouble(x uint64) {
 	if res, ok := DOUBLES[x]; ok {
-		return res
+		self.append(res)
+		return
 	}
 	// max required - 55 bytes
 	exponent := int32((x>>52)&0x7FF) - 1023
@@ -130,16 +154,16 @@ func _calcDouble(x uint64) string {
 		ex_combine_op = DDIV
 		abs_exponent = -exponent
 	}
-	exponent_parts := []string{}
 
+	exponent_part := buffer{}
 	part63 := abs_exponent / 63
 	if part63 > 0 { //create *63 part of exponent by repeated squaring
 		// use 2^-x instead of calculating 2^x and dividing to avoid overflow in
 		// case we need 2^-1071
 		if exponent < 0 { // -2^-63
-			exponent_parts = append(exponent_parts, string([]byte{DCONST_1, LCONST_1, ICONST_M1, LSHL, L2D, DDIV}))
+			exponent_part.push(DCONST_1, LCONST_1, ICONST_M1, LSHL, L2D, DDIV)
 		} else { // -2^63
-			exponent_parts = append(exponent_parts, string([]byte{LCONST_1, ICONST_M1, LSHL, L2D}))
+			exponent_part.push(LCONST_1, ICONST_M1, LSHL, L2D)
 		}
 		// adjust sign of mantissa for odd powers since we're actually using -2^63 rather than positive
 		if part63&1 > 0 {
@@ -148,41 +172,51 @@ func _calcDouble(x uint64) string {
 		dmuls := []byte{DMUL} // include term from leading one in part63
 		last_needed := part63 & 1
 		for bi := 1; bi < big.NewInt(int64(part63)).BitLen(); bi++ {
-			exponent_parts = append(exponent_parts, string([]byte{DUP2}))
+			exponent_part.push(DUP2)
 			if last_needed > 0 {
-				exponent_parts = append(exponent_parts, string([]byte{DUP2}))
+				exponent_part.push(DUP2)
 				dmuls = append(dmuls, DMUL)
 			}
-			exponent_parts = append(exponent_parts, string([]byte{DMUL}))
+			exponent_part.push(DMUL)
 			last_needed = part63 & (1 << uint32(bi))
 		}
-		exponent_parts = append(exponent_parts, string(dmuls))
+		exponent_part.appendb(dmuls)
 	}
 
 	// now handle the rest
 	rest := int32(abs_exponent % 63)
 	if rest > 0 {
-		exponent_parts = append(exponent_parts, string([]byte{LCONST_1}))
-		exponent_parts = append(exponent_parts, _calcInt(rest))
-		exponent_parts = append(exponent_parts, string([]byte{LSHL, L2D}))
-		exponent_parts = append(exponent_parts, string([]byte{ex_combine_op}))
+		exponent_part.push(LCONST_1)
+		exponent_part.calcInt(rest)
+		exponent_part.push(LSHL, L2D)
+		exponent_part.push(ex_combine_op)
 	}
-	return _calcLong(mantissa) + string([]byte{L2D}) + strings.Join(exponent_parts, "")
+	self.calcLong(mantissa)
+	self.push(L2D)
+	self.appendb(exponent_part)
 }
 
 func calcInt(x uint64) string {
-	return _calcInt(int32(x))
+	b := buffer{}
+	b.calcInt(int32(x))
+	return string(b)
 }
 func calcLong(x uint64) string {
-	return _calcLong(int64(x))
+	b := buffer{}
+	b.calcLong(int64(x))
+	return string(b)
 }
 func calcFloat(x uint64) string {
-	return _calcFloat(normalizeFloat(x))
+	b := buffer{}
+	b.calcFloat(normalizeFloat(x))
+	return string(b)
 }
 func calcDouble(x uint64) string {
-	return _calcDouble(normalizeDouble(x))
-
+	b := buffer{}
+	b.calcDouble(normalizeDouble(x))
+	return string(b)
 }
+
 func Normalize(st scalars.T, val uint64) uint64 {
 	if st == scalars.FLOAT {
 		return normalizeFloat(val)

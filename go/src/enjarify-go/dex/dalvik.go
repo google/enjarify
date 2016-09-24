@@ -282,7 +282,7 @@ func parseBytecode(dex *DexFile, insns_start_pos uint32, shorts []uint16, catch_
 				}
 
 				set[prev.Ra] = false
-				regs := []uint16{}
+				regs := make([]uint16, 0, len(set))
 				for k, v := range set {
 					if v {
 						regs = append(regs, k)
