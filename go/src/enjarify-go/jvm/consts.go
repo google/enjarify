@@ -32,9 +32,9 @@ func AllocateRequiredConstants(pool cpool.Pool, long_irs []*IRWriter) {
 		for i := range irw.Instructions {
 			instr := &irw.Instructions[i]
 			if instr.Tag == ir.PRIMCONSTANT {
-				key := instr.PrimConstant.Pair
+				key := instr.PrimConstant().Pair
 				alt_lens[key] = len(instr.Bytecode)
-				if instr.PrimConstant.T.Wide() {
+				if instr.PrimConstant().T.Wide() {
 					if len(instr.Bytecode) > 3 {
 						wide_pairs[key] += 1
 					}

@@ -46,13 +46,23 @@ type Instruction struct {
 	HasBC    bool
 
 	Tag insTag
-	Label
-	RegAccess
-	PrimConstant
-	Goto
-	If
-	Switch
+	sub interface{}
 }
+
+func (self *Instruction) Label() Label {
+	lbl, ok := self.sub.(*Label)
+	if !ok {
+		return Label{}
+	} else {
+		return *lbl
+	}
+}
+
+func (self *Instruction) RegAccess() *RegAccess       { return self.sub.(*RegAccess) }
+func (self *Instruction) PrimConstant() *PrimConstant { return self.sub.(*PrimConstant) }
+func (self *Instruction) Goto() *Goto                 { return self.sub.(*Goto) }
+func (self *Instruction) If() *If                     { return self.sub.(*If) }
+func (self *Instruction) Switch() *Switch             { return self.sub.(*Switch) }
 
 func (self *Instruction) Fallsthrough() bool {
 	switch self.Tag {
@@ -71,11 +81,12 @@ func (self *Instruction) Fallsthrough() bool {
 func (self *Instruction) Targets() []uint32 {
 	switch self.Tag {
 	case GOTO_TAG:
-		return []uint32{self.Goto.Target}
+		return []uint32{self.Goto().Target}
 	case IF:
-		return []uint32{self.If.Target}
+		return []uint32{self.If().Target}
 	case SWITCH:
 		{
+			self := self.Switch()
 			result := make([]uint32, 0, 1+len(self.Jumps))
 			for _, v := range self.Jumps {
 				result = append(result, v)
@@ -97,19 +108,19 @@ func (self *Instruction) IsConstant() bool {
 func (self *Instruction) MinLen(pos uint32) uint32 {
 	switch self.Tag {
 	case GOTO_TAG:
-		if self.Goto.Wide {
+		if self.Goto().Wide {
 			return 5
 		} else {
 			return 3
 		}
 	case IF:
-		if self.If.Wide {
+		if self.If().Wide {
 			return 8
 		} else {
 			return 3
 		}
 	case SWITCH:
-		return ((^pos) % 4) + self.NoPadSize
+		return ((^pos) % 4) + self.Switch().NoPadSize
 	default:
 		return uint32(len(self.Bytecode))
 	}
@@ -125,7 +136,7 @@ func (self *Instruction) UpperBound() int {
 	case IF:
 		return 8
 	case SWITCH:
-		return 3 + int(self.NoPadSize)
+		return 3 + int(self.Switch().NoPadSize)
 	}
 	panic(util.Unreachable)
 }
@@ -149,7 +160,7 @@ type Label struct {
 }
 
 func NewLabel(tag lblTag, pos uint32) Instruction {
-	return Instruction{HasBC: true, Tag: LABEL, Label: Label{tag, pos}}
+	return Instruction{HasBC: true, Tag: LABEL, sub: &Label{tag, pos}}
 }
 
 type RegKey struct {
@@ -184,12 +195,12 @@ func (self *RegAccess) CalcBytecode(local uint16) string {
 }
 
 func NewRegAccess(dreg uint16, st scalars.T, store bool) Instruction {
-	return Instruction{Tag: REGACCESS, RegAccess: RegAccess{RegKey{dreg, st}, store}}
+	return Instruction{Tag: REGACCESS, sub: &RegAccess{RegKey{dreg, st}, store}}
 }
 
 func RawRegAccess(local uint16, st scalars.T, store bool) Instruction {
 	data := RegAccess{RegKey{0, st}, store}
-	return Instruction{Bytecode: data.CalcBytecode(local), HasBC: true, Tag: REGACCESS, RegAccess: data}
+	return Instruction{Bytecode: data.CalcBytecode(local), HasBC: true, Tag: REGACCESS, sub: &data}
 }
 
 type PrimConstant struct {
@@ -260,7 +271,7 @@ func NewPrimConstant(st scalars.T, val uint64, pool cpool.Pool) Instruction {
 	} else {
 		bytecode = constants.Calc(st, val)
 	}
-	return Instruction{Bytecode: bytecode, HasBC: true, Tag: PRIMCONSTANT, PrimConstant: PrimConstant{st, key}}
+	return Instruction{Bytecode: bytecode, HasBC: true, Tag: PRIMCONSTANT, sub: &PrimConstant{st, key}}
 }
 
 func NewOtherConstant(bc string) Instruction {
@@ -273,7 +284,7 @@ type Goto struct {
 }
 
 func NewGoto(target uint32) Instruction {
-	return Instruction{Tag: GOTO_TAG, Goto: Goto{target, false}}
+	return Instruction{Tag: GOTO_TAG, sub: &Goto{target, false}}
 }
 
 type If struct {
@@ -283,7 +294,7 @@ type If struct {
 }
 
 func NewIf(op uint8, target uint32) Instruction {
-	return Instruction{Tag: IF, If: If{target, false, op}}
+	return Instruction{Tag: IF, sub: &If{target, false, op}}
 }
 
 type Switch struct {
@@ -317,7 +328,7 @@ func NewSwitch(def uint32, jumps map[int32]uint32) Instruction {
 		best = jumpSize
 	}
 
-	return Instruction{Tag: SWITCH, Switch: Switch{
+	return Instruction{Tag: SWITCH, sub: &Switch{
 		Default:   def,
 		Jumps:     jumps,
 		Low:       int32(low),

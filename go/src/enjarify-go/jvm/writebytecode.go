@@ -101,7 +101,7 @@ func finishCodeAttrs(pool cpool.Pool, code_irs []*IRWriter, opts Options) map[de
 			for i := range irw.Instructions {
 				instr := &irw.Instructions[i]
 				if instr.Tag == ir.PRIMCONSTANT {
-					instr.FixWithPool(pool, &irw.Instructions[i])
+					instr.PrimConstant().FixWithPool(pool, &irw.Instructions[i])
 				}
 			}
 		}

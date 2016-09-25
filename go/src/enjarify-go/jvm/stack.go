@@ -36,7 +36,7 @@ func visitLinearCode(irdata *IRWriter, visitor visitorInterface) {
 	except_level := 0
 	for i := range irdata.Instructions {
 		instr := &irdata.Instructions[i]
-		lbl := instr.Label
+		lbl := instr.Label()
 		if lbl.Tag == ir.ESTART {
 			except_level += 1
 			visitor.reset()
@@ -78,8 +78,8 @@ func (self *ConstInliner) visitReturn() {
 }
 func (self *ConstInliner) visit(i int, instr *ir.Instruction) {
 	if instr.Tag == ir.REGACCESS {
-		key := instr.RegKey
-		if instr.RegAccess.Store {
+		key := instr.RegAccess().RegKey
+		if instr.RegAccess().Store {
 			if v, ok := self.current[key]; ok {
 				self.notmultiused[v] = true
 			}
@@ -146,15 +146,15 @@ func (self *StoreLoadPruner) visitReturn() {
 }
 func (self *StoreLoadPruner) visit(i int, instr *ir.Instruction) {
 	if instr.Tag == ir.REGACCESS {
-		key := instr.RegKey
-		if instr.RegAccess.Store {
+		key := instr.RegAccess().RegKey
+		if instr.RegAccess().Store {
 			if pair, ok := self.current[key]; ok {
 				self.removed[pair[0]] = true
 				self.removed[pair[1]] = true
 				delete(self.current, key)
 			}
 			self.lastInd = i
-			self.last = &instr.RegAccess
+			self.last = instr.RegAccess()
 		} else {
 			delete(self.current, key)
 			if self.last != nil && self.last.RegKey == key {
@@ -272,7 +272,7 @@ func Dup2ize(irdata *IRWriter) {
 		instr := &instrs[i]
 		// if not linear section of bytecode, reset everything. Exceptions are ok
 		// since they clear the stack, but jumps obviously aren't.
-		if instr.IsJump() || irdata.IsTarget(instr.Label) {
+		if instr.IsJump() || irdata.IsTarget(instr.Label()) {
 			for _, v := range current {
 				ranges = append(ranges, v)
 			}
@@ -280,9 +280,9 @@ func Dup2ize(irdata *IRWriter) {
 		}
 
 		if instr.Tag == ir.REGACCESS {
-			key := instr.RegKey
+			key := instr.RegAccess().RegKey
 			if !key.T.Wide() {
-				if instr.RegAccess.Store {
+				if instr.RegAccess().Store {
 					if v, ok := current[key]; ok {
 						ranges = append(ranges, v)
 						delete(current, key)
@@ -297,7 +297,7 @@ func Dup2ize(irdata *IRWriter) {
 		}
 
 		if instr.Tag == ir.LABEL {
-			at_head = instr.Label.Tag == ir.DPOS
+			at_head = instr.Label().Tag == ir.DPOS
 		} else {
 			at_head = false
 		}

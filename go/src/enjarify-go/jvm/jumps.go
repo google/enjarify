@@ -42,7 +42,7 @@ func widenIfNecessary(ins *ir.Instruction, pos uint32, info PosInfo) bool {
 	switch ins.Tag {
 	case ir.GOTO_TAG:
 		{
-			data := &ins.Goto
+			data := ins.Goto()
 			if data.Wide {
 				return false
 			}
@@ -52,7 +52,7 @@ func widenIfNecessary(ins *ir.Instruction, pos uint32, info PosInfo) bool {
 		}
 	case ir.IF:
 		{
-			data := &ins.If
+			data := ins.If()
 			if data.Wide {
 				return false
 			}
@@ -77,7 +77,7 @@ func optimizeJumps(irdata *IRWriter) {
 	for i := range instrs {
 		ins := &instrs[i]
 		if ins.Tag == ir.LABEL {
-			lblToVind[ins.Label] = i
+			lblToVind[ins.Label()] = i
 		}
 	}
 
@@ -110,7 +110,7 @@ func createBytecode(irdata *IRWriter) (string, []string) {
 	for i := range instrs {
 		ins := &instrs[i]
 		if ins.Tag == ir.LABEL {
-			lblToVind[ins.Label] = i
+			lblToVind[ins.Label()] = i
 		}
 	}
 
@@ -125,7 +125,7 @@ func createBytecode(irdata *IRWriter) (string, []string) {
 		switch ins.Tag {
 		case ir.GOTO_TAG:
 			{
-				data := ins.Goto
+				data := ins.Goto()
 				offset := info.offset(pos, data.Target)
 				if data.Wide {
 					stream.WriteString(byteio.Bi(GOTO_W, offset))
@@ -135,7 +135,7 @@ func createBytecode(irdata *IRWriter) (string, []string) {
 			}
 		case ir.IF:
 			{
-				data := ins.If
+				data := ins.If()
 				offset := info.offset(pos, data.Target)
 				if data.Wide {
 					// Unlike with goto, if instructions are limited to a 16 bit jump offset.
@@ -157,7 +157,7 @@ func createBytecode(irdata *IRWriter) (string, []string) {
 			}
 		case ir.SWITCH:
 			{
-				data := ins.Switch
+				data := ins.Switch()
 				offset := info.offset(pos, data.Default)
 				pad := (^pos) % 4
 
@@ -206,12 +206,12 @@ func createBytecode(irdata *IRWriter) (string, []string) {
 		// therefore we include the previous (IR) instruction too
 		// Note that this cannot cause an overlap because in that case the previous
 		// instruction would just be a label and hence not change anything
-		sind := lblToVind[item.start.Label]
+		sind := lblToVind[item.start.Label()]
 		if sind > 0 {
 			sind--
 		}
 		soff := positions[sind]
-		excepts = append(excepts, byteio.HHHH(uint16(soff), uint16(info.getlbl(item.end.Label)), uint16(info.getlbl(item.target)), item.ctype))
+		excepts = append(excepts, byteio.HHHH(uint16(soff), uint16(info.getlbl(item.end.Label())), uint16(info.getlbl(item.target)), item.ctype))
 	}
 
 	return stream.String(), excepts

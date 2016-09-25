@@ -118,10 +118,10 @@ func CopyPropagation(irdata *IRWriter) {
 	for i := range instrs {
 		instr := &instrs[i]
 		// reset all info when control flow is merged
-		if irdata.IsTarget(instr.Label) {
+		if irdata.IsTarget(instr.Label()) {
 			// try to use info if this was a single predecessor forward jump
-			if i > 0 && !prev.Fallsthrough() && irdata.target_pred_counts[instr.Label] == 1 {
-				current = single_pred_infos[instr.Label]
+			if i > 0 && !prev.Fallsthrough() && irdata.target_pred_counts[instr.Label()] == 1 {
+				current = single_pred_infos[instr.Label()]
 				if current == nil {
 					current = newCopySetsMap()
 				}
@@ -129,12 +129,12 @@ func CopyPropagation(irdata *IRWriter) {
 				current = newCopySetsMap()
 			}
 		} else if instr.Tag == ir.REGACCESS {
-			ins := instr.RegAccess
+			ins := instr.RegAccess()
 			key := ins.RegKey
 			if ins.Store {
 				// check if previous instr was a load
-				if prev.Tag == ir.REGACCESS && !prev.RegAccess.Store {
-					if !current.move(key, prev.RegKey) {
+				if prev.Tag == ir.REGACCESS && !prev.RegAccess().Store {
+					if !current.move(key, prev.RegAccess().RegKey) {
 						replace[i-1] = nil
 						replace[i] = nil
 					}
@@ -172,8 +172,8 @@ func RemoveUnusedRegisters(irdata *IRWriter) {
 	used := make(map[ir.RegKey]bool)
 	for i := range instrs {
 		instr := &instrs[i]
-		if instr.Tag == ir.REGACCESS && !instr.RegAccess.Store {
-			used[instr.RegKey] = true
+		if instr.Tag == ir.REGACCESS && !instr.RegAccess().Store {
+			used[instr.RegAccess().RegKey] = true
 		}
 	}
 
@@ -182,22 +182,22 @@ func RemoveUnusedRegisters(irdata *IRWriter) {
 	for i := range instrs {
 		instr := &instrs[i]
 		if instr.Tag == ir.REGACCESS {
-			if !used[instr.RegAccess.RegKey] {
-				util.Assert(instr.RegAccess.Store)
+			if !used[instr.RegAccess().RegKey] {
+				util.Assert(instr.RegAccess().Store)
 				// if prev instruction is load or const, just remove it and the store
 				// otherwise, replace the store with a pop
 				if prev_was_replaceable {
 					replace[i-1] = nil
 					replace[i] = nil
 				} else {
-					if instr.RegAccess.T.Wide() {
+					if instr.RegAccess().T.Wide() {
 						replace[i] = []ir.Instruction{ir.NewOther(byteio.B(POP2))}
 					} else {
 						replace[i] = []ir.Instruction{ir.NewOther(byteio.B(POP))}
 					}
 				}
 			}
-			prev_was_replaceable = !instr.RegAccess.Store
+			prev_was_replaceable = !instr.RegAccess().Store
 		} else {
 			prev_was_replaceable = instr.IsConstant()
 		}
@@ -218,16 +218,16 @@ func SimpleAllocateRegisters(irdata *IRWriter) {
 	for i := range instrs {
 		instr := &instrs[i]
 		if instr.Tag == ir.REGACCESS {
-			if _, ok := regmap[instr.RegKey]; !ok {
-				regmap[instr.RegKey] = next
+			if _, ok := regmap[instr.RegAccess().RegKey]; !ok {
+				regmap[instr.RegAccess().RegKey] = next
 				next++
-				if instr.RegAccess.T.Wide() {
+				if instr.RegAccess().T.Wide() {
 					next++
 				}
 			}
-			_, ok := regmap[instr.RegKey]
+			_, ok := regmap[instr.RegAccess().RegKey]
 			util.Assert(ok)
-			instrs[i].Bytecode = instr.CalcBytecode(uint16(regmap[instr.RegKey]))
+			instrs[i].Bytecode = instr.RegAccess().CalcBytecode(uint16(regmap[instr.RegAccess().RegKey]))
 			instrs[i].HasBC = true
 		}
 	}
@@ -264,7 +264,7 @@ func SortAllocateRegisters(irdata *IRWriter) {
 	for i := range instrs {
 		instr := &instrs[i]
 		if instr.Tag == ir.REGACCESS {
-			use_counts[instr.RegKey] += 1
+			use_counts[instr.RegAccess().RegKey] += 1
 		}
 	}
 
@@ -343,7 +343,7 @@ func SortAllocateRegisters(irdata *IRWriter) {
 	for i := range instrs {
 		instr := &instrs[i]
 		if instr.Tag == ir.REGACCESS && !instr.HasBC {
-			instr.Bytecode = instr.RegAccess.CalcBytecode(uint16(regmap[instr.RegKey]))
+			instr.Bytecode = instr.RegAccess().CalcBytecode(uint16(regmap[instr.RegAccess().RegKey]))
 			instr.HasBC = true
 		}
 	}

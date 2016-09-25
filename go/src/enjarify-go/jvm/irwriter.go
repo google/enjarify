@@ -82,10 +82,11 @@ func (self *IRWriter) calcInitialArgs(nregs uint16, scalar_ptypes []scalars.T) {
 
 func (self *IRWriter) addExceptionRedirect(target uint32) ir.Label {
 	if val, ok := self.exception_redirects[target]; ok {
-		return val.Label
+		return val.Label()
 	}
-	self.exception_redirects[target] = ir.NewLabel(ir.EHANDLER, target)
-	return self.exception_redirects[target].Label
+	temp := ir.NewLabel(ir.EHANDLER, target)
+	self.exception_redirects[target] = temp
+	return temp.Label()
 }
 
 func (self *IRWriter) createBlock(pos uint32) *irBlock {
