@@ -37,25 +37,30 @@ import (
 // but it's the best we can do without requiring knowledge of the whole inheritance
 // hierarchy.
 
+type ScalarT scalars.T
+type ArrayT arrays.T
+
 type TypeInfo struct {
-	prims, arrs, tainted *ImmutableTreeList
+	prims   *ImmutableTreeListᐸScalarTᐳ
+	arrs    *ImmutableTreeListᐸArrayTᐳ
+	tainted *ImmutableTreeListᐸboolᐳ
 }
 
 func (self TypeInfo) st(reg uint16) scalars.T {
-	return self.prims.get(reg).(scalars.T)
+	return scalars.T(self.prims.get(reg))
 }
 
 func (self TypeInfo) at(reg uint16) arrays.T {
-	return self.arrs.get(reg).(arrays.T)
+	return arrays.T(self.arrs.get(reg))
 }
 
 func (self TypeInfo) taint(reg uint16) bool {
-	return self.tainted.get(reg).(bool)
+	return self.tainted.get(reg)
 }
 
 func (self TypeInfo) set(reg uint16, st scalars.T, at arrays.T, taint bool) TypeInfo {
-	self.prims = self.prims.set(reg, st)
-	self.arrs = self.arrs.set(reg, at)
+	self.prims = self.prims.set(reg, ScalarT(st))
+	self.arrs = self.arrs.set(reg, ArrayT(at))
 	self.tainted = self.tainted.set(reg, taint)
 	return self
 }
@@ -96,9 +101,9 @@ func (self TypeInfo) assignFromDesc(reg uint16, desc string) TypeInfo {
 }
 
 func (self TypeInfo) merge(other TypeInfo) TypeInfo {
-	self.prims = self.prims.merge(other.prims, func(a, b interface{}) interface{} { return a.(scalars.T) & b.(scalars.T) })
-	self.arrs = self.arrs.merge(other.arrs, func(a, b interface{}) interface{} { return a.(arrays.T).Merge(b.(arrays.T)) })
-	self.tainted = self.tainted.merge(other.tainted, func(a, b interface{}) interface{} { return a.(bool) || b.(bool) })
+	self.prims = self.prims.merge(other.prims, func(a, b ScalarT) ScalarT { return a & b })
+	self.arrs = self.arrs.merge(other.arrs, func(a, b ArrayT) ArrayT { return ArrayT(arrays.T(a).Merge(arrays.T(b))) })
+	self.tainted = self.tainted.merge(other.tainted, func(a, b bool) bool { return a || b })
 	return self
 }
 
@@ -107,14 +112,14 @@ func fromParams(method dex.Method, nregs uint16) TypeInfo {
 	full_ptypes := method.GetSpacedParamTypes(isstatic)
 	offset := nregs - uint16(len(full_ptypes))
 
-	prims := newTreeList(scalars.INVALID)
-	arrs := newTreeList(arrays.INVALID)
-	tainted := newTreeList(false)
+	prims := newTreeListᐸScalarTᐳ(ScalarT(scalars.INVALID))
+	arrs := newTreeListᐸArrayTᐳ(ArrayT(arrays.INVALID))
+	tainted := newTreeListᐸboolᐳ(false)
 
 	for i, desc := range full_ptypes {
 		if desc != nil {
-			prims = prims.set(offset+uint16(i), scalars.FromDesc(*desc))
-			arrs = arrs.set(offset+uint16(i), arrays.FromDesc(*desc))
+			prims = prims.set(offset+uint16(i), ScalarT(scalars.FromDesc(*desc)))
+			arrs = arrs.set(offset+uint16(i), ArrayT(arrays.FromDesc(*desc)))
 		}
 	}
 	return TypeInfo{prims, arrs, tainted}

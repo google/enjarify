@@ -11,40 +11,37 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package jvm
 
-// The first SIZE elements are stored directly, the rest are stored in one of SPLIT subtrees
-const SIZE = 16
-const SPLIT = 16
+package jvm
 
 // This class represents a list as a persistent n-ary tree
 // This has much slower access and updates than a real list but has the advantage
 // of sharing memory with previous versions of the list when only a few elements
 // are changed. See http://en.wikipedia.org/wiki/Persistent_data_structure//Trees
 // Also, default values are not stored, so this is good for sparse arrays
-type ImmutableTreeList struct {
-	missing  interface{}
-	direct   [SIZE]interface{}
-	children [SPLIT]*ImmutableTreeList
+type ImmutableTreeListᐸScalarTᐳ struct {
+	missing  ScalarT
+	direct   [16]ScalarT
+	children [16]*ImmutableTreeListᐸScalarTᐳ
 }
 
-func newTreeList(missing interface{}) *ImmutableTreeList {
-	self := ImmutableTreeList{missing: missing}
-	for i := 0; i < SIZE; i++ {
+func newTreeListᐸScalarTᐳ(missing ScalarT) *ImmutableTreeListᐸScalarTᐳ {
+	self := ImmutableTreeListᐸScalarTᐳ{missing: missing}
+	for i := 0; i < 16; i++ {
 		self.direct[i] = missing
 	}
 	// Subtrees allocated lazily
 	return &self
 }
 
-func (self *ImmutableTreeList) get(i uint16) interface{} {
-	if i < SIZE {
+func (self *ImmutableTreeListᐸScalarTᐳ) get(i uint16) ScalarT {
+	if i < 16 {
 		return self.direct[i]
 	}
-	i -= SIZE
+	i -= 16
 
-	ci := i % SPLIT
-	i = i / SPLIT
+	ci := i % 16
+	i = i / 16
 	child := self.children[ci]
 	if child == nil {
 		return self.missing
@@ -52,28 +49,28 @@ func (self *ImmutableTreeList) get(i uint16) interface{} {
 	return child.get(i)
 }
 
-func (self *ImmutableTreeList) set(i uint16, val interface{}) *ImmutableTreeList {
-	if i < SIZE {
+func (self *ImmutableTreeListᐸScalarTᐳ) set(i uint16, val ScalarT) *ImmutableTreeListᐸScalarTᐳ {
+	if i < 16 {
 		if val == self.direct[i] {
 			return self
 		}
 
 		temp := self.direct
 		temp[i] = val
-		return &ImmutableTreeList{self.missing, temp, self.children}
+		return &ImmutableTreeListᐸScalarTᐳ{self.missing, temp, self.children}
 	}
 
-	i -= SIZE
+	i -= 16
 
-	ci := i % SPLIT
-	i = i / SPLIT
+	ci := i % 16
+	i = i / 16
 	child := self.children[ci]
 
 	if child == nil {
 		if val == self.missing {
 			return self
 		}
-		child = newTreeList(self.missing).set(i, val)
+		child = newTreeListᐸScalarTᐳ(self.missing).set(i, val)
 	} else {
 		if val == child.get(i) {
 			return self
@@ -83,10 +80,10 @@ func (self *ImmutableTreeList) set(i uint16, val interface{}) *ImmutableTreeList
 
 	temp := self.children
 	temp[ci] = child
-	return &ImmutableTreeList{self.missing, self.direct, temp}
+	return &ImmutableTreeListᐸScalarTᐳ{self.missing, self.direct, temp}
 }
 
-func (left *ImmutableTreeList) merge(right *ImmutableTreeList, f func(interface{}, interface{}) interface{}) *ImmutableTreeList {
+func (left *ImmutableTreeListᐸScalarTᐳ) merge(right *ImmutableTreeListᐸScalarTᐳ, f func(ScalarT, ScalarT) ScalarT) *ImmutableTreeListᐸScalarTᐳ {
 	// Effectively computes [func(x, y) for x, y in zip(left, right)]
 	// Assume func(x, x) == x
 	if left == right {
@@ -98,8 +95,8 @@ func (left *ImmutableTreeList) merge(right *ImmutableTreeList, f func(interface{
 	}
 
 	missing := left.missing
-	direct := [SIZE]interface{}{}
-	children := [SPLIT]*ImmutableTreeList{}
+	direct := [16]ScalarT{}
+	children := [16]*ImmutableTreeListᐸScalarTᐳ{}
 
 	if right == nil {
 		for i, x := range left.direct {
@@ -124,5 +121,5 @@ func (left *ImmutableTreeList) merge(right *ImmutableTreeList, f func(interface{
 	if direct == left.direct && children == left.children {
 		return left
 	}
-	return &ImmutableTreeList{missing, direct, children}
+	return &ImmutableTreeListᐸScalarTᐳ{missing, direct, children}
 }
