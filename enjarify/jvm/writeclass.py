@@ -76,7 +76,12 @@ def classFileAfterPool(cls, opts):
         pool = constantpool.SimpleConstantPool()
 
     cls.parseData()
-    stream.u16(cls.access & flags.CLASS_FLAGS) # access
+    access = cls.access & flags.CLASS_FLAGS
+    if not access & flags.ACC_INTERFACE:
+        # Not necessary for correctness, but this works around a bug in dx
+        access |= flags.ACC_SUPER
+
+    stream.u16(access) # access
     stream.u16(pool.class_(cls.name)) # this
     super_ = pool.class_(cls.super) if cls.super is not None else 0
     stream.u16(super_) # super
