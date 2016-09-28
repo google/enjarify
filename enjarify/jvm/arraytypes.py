@@ -52,4 +52,4 @@ def eletPair(t):
 def fromDesc(desc):
     if not desc.startswith(b'[') or desc.endswith(b';'):
         return INVALID
-    return desc.replace(b'Z', b'B') # treat bool arrays as byte arrays
+    return desc

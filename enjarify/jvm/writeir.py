@@ -33,6 +33,8 @@ _ilfdaOrd = [scalars.INT, scalars.LONG, scalars.FLOAT, scalars.DOUBLE, scalars.O
 _newArrayCodes = {('['+t).encode(): v for t, v in zip('ZCFDBSIJ', range(4, 12))}
 _arrStoreOps = {t.encode(): v for t, v in zip('IJFD BCS', range(IASTORE, SASTORE+1))}
 _arrLoadOps = {t.encode(): v for t, v in zip('IJFD BCS', range(IALOAD, SALOAD+1))}
+_arrStoreOps[u'Z'] = BASTORE
+_arrLoadOps[u'Z'] = BALOAD
 
 # For generating IR instructions corresponding to a single Dalvik instruction
 class IRBlock:
@@ -371,7 +373,7 @@ def visitFillArrayData(method, dex, instr_d, type_data, block, instr):
         else:
             st, elet = arrays.eletPair(at)
             # check if we need to sign extend
-            if elet == b'B':
+            if elet == b'B' or elet == b'Z':
                 arrdata = [util.signExtend(x, 8) & 0xFFFFFFFF for x in arrdata]
             elif elet == b'S':
                 arrdata = [util.signExtend(x, 16) & 0xFFFFFFFF for x in arrdata]
