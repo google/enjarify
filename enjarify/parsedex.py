@@ -17,6 +17,7 @@ import array
 from .byteio import Reader
 from .dalvik import parseBytecode
 from .util import signExtend
+from .flags import *
 
 NO_INDEX = 0xFFFFFFFF
 
@@ -204,6 +205,11 @@ class DexClass:
         words = dex.u32s[offset:offset+8]
         self.name = dex.clsType(words[0])
         self.access = words[1]
+        
+		# set the ACC_SUPER flag for every class that isn't an interface
+		if not (self.access & ACC_INTERFACE):
+			self.access = self.access | ACC_SUPER
+
         self.super = dex.clsType(words[2]) if words[2] != NO_INDEX else None
         self.interfaces = typeList(dex, words[3], parseClsDesc=True)
         # ignore sourcefile for now
