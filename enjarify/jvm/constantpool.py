@@ -74,8 +74,6 @@ class ConstantPoolBase:
 
     def utf8(self, s):
         assert isinstance(s, bytes)
-        if len(s) > 65535:
-            raise error.ClassfileLimitExceeded()
         return self._get(CONSTANT_Utf8, s)
 
     def class_(self, s): return self._get(CONSTANT_Class, self.utf8(s))
