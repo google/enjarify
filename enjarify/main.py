@@ -23,7 +23,7 @@ def read(fname, mode='rb'):
     with open(fname, mode) as f:
         return f.read()
 
-def translate(data, opts, classes=None, errors=None):
+def translate(data, opts, classes=None, errors=None, allowErrors=True):
     dex = parsedex.DexFile(data)
     classes = collections.OrderedDict() if classes is None else classes
     errors = collections.OrderedDict() if errors is None else errors
@@ -38,6 +38,8 @@ def translate(data, opts, classes=None, errors=None):
             class_data = writeclass.toClassFile(cls, opts)
             classes[unicode_name] = class_data
         except Exception:
+            if not allowErrors:
+                raise
             errors[unicode_name] = traceback.format_exc()
 
         if not (len(classes) + len(errors)) % 1000:

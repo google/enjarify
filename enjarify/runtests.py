@@ -27,8 +27,7 @@ def executeTest(name, opts):
     print('running test', name)
     dir = os.path.join('tests', name)
     rawdex = read(os.path.join(dir, 'classes.dex'), 'rb')
-    classes, errors = translate(rawdex, opts=opts)
-    assert not errors
+    classes, errors = translate(rawdex, opts=opts, allowErrors=False)
 
     classes.update(STUB_FILES)
     writeToJar('out.jar', classes)
