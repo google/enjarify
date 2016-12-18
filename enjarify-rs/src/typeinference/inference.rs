@@ -175,16 +175,12 @@ impl<'a> State<'a> {
         // println!("domerge {} {}", pos, self.2.contains_key(&pos));
         if !self.2.contains_key(&pos) { return; }
 
-        // unnecessary extra lookup?
-        if self.0.contains_key(&pos) {
-            if self.0.get_mut(&pos).unwrap().merge(new) {
-                self.1.insert(pos);
-            }
-        } else {
-            self.0.insert(pos, new.clone());
-            self.1.insert(pos);
+        if let Some(cur) = self.0.get_mut(&pos) {
+            if cur.merge(new) { self.1.insert(pos); }
+            return;
         }
-        // println!("[{}] tainted[13] {}", pos, self.0[&pos].tainted.get(13));
+        self.0.insert(pos, new.clone());
+        self.1.insert(pos);
     }
 }
 
