@@ -13,6 +13,7 @@
 // limitations under the License.
 use std::collections::HashSet;
 // use std::fmt;
+use std::ops::Deref;
 use std::str;
 
 use strings::*;
@@ -21,7 +22,7 @@ use dalvik::{DalvikInstruction, parse_bytecode};
 
 const NO_INDEX: u32 = 0xFFFFFFFF;
 
-fn type_list<'a>(dex: &'a DexFile<'a>, off: u32, parse_cls_desc: bool) -> Vec<&'a bstr> {
+fn type_list<'a>(dex: &DexFileNoProtos<'a>, off: u32, parse_cls_desc: bool) -> Vec<&'a bstr> {
     if off == 0 { return Vec::new(); }
 
     let mut st = dex.stream(off);
@@ -89,7 +90,7 @@ pub struct FieldId<'a> {
     pub desc: &'a bstr,
 }
 impl<'a> FieldId<'a> {
-    fn new(dex: &'a DexFile<'a>, field_idx: u32) -> FieldId<'a> {
+    fn new(dex: &DexFile<'a>, field_idx: u32) -> FieldId<'a> {
         let mut st = dex.stream(dex.field_ids.off + field_idx*8);
         FieldId{
             cname: dex.cls_type(st.u16() as u32),
@@ -191,15 +192,30 @@ impl<'a> CodeItem<'a> {
     }
 }
 
+fn parse_prototype<'a>(dex: &DexFileNoProtos<'a>, proto_idx: u32) -> (BString, Vec<&'a bstr>, &'a bstr) {
+    let mut st = dex.stream(dex.proto_ids.off + proto_idx * 12);
+    st.u32();
+    let return_type = dex.raw_type(st.u32());
+    let param_types = type_list(dex, st.u32(), false);
+
+    let mut desc = vec![b'('];
+    for part in &param_types {
+        desc.extend_from_slice(part);
+    }
+    desc.push(b')');
+    desc.extend_from_slice(return_type);
+    (desc, param_types, return_type)
+}
+
 pub struct MethodId<'a> {
     pub cname: &'a bstr,
     pub name: &'a bstr,
-    pub desc: BString,
+    pub desc: &'a bstr,
     pub return_type: &'a bstr,
     pub method_idx: u32,
 
+    proto_idx: u32,
     cdesc: &'a bstr,
-    param_types: Vec<&'a bstr>,
 }
 impl<'a> MethodId<'a> {
     fn new(dex: &'a DexFile<'a>, method_idx: u32) -> MethodId<'a> {
@@ -209,35 +225,24 @@ impl<'a> MethodId<'a> {
         let proto_idx = st.u16() as u32;
         let name = dex.string(st.u32());
 
-        st = dex.stream(dex.proto_ids.off + proto_idx * 12);
-        st.u32();
-        let return_type = dex.raw_type(st.u32());
-        let param_types = type_list(dex, st.u32(), false);
-
-        let mut desc = vec![b'('];
-        for part in &param_types {
-            desc.extend_from_slice(part);
-        }
-        desc.push(b')');
-        desc.extend_from_slice(return_type);
-
         MethodId{
             cname: cname,
             name: name,
-            desc: desc,
-            return_type: return_type,
+            desc: &dex.proto(proto_idx).0,
+            return_type: dex.proto(proto_idx).2,
             method_idx: method_idx,
+            proto_idx: proto_idx,
 
             cdesc: dex.raw_type(cname_idx),
-            param_types: param_types,
         }
     }
 
-    pub fn spaced_param_types(&self, isstatic: bool) -> Vec<Option<&'a bstr>> {
-        let mut res = Vec::with_capacity(self.param_types.len() + 1);
+    pub fn spaced_param_types(&self, dex: &DexFile<'a>, isstatic: bool) -> Vec<Option<&'a bstr>> {
+        let param_types = &dex.proto(self.proto_idx).1;
+        let mut res = Vec::with_capacity(param_types.len() + 1);
         if !isstatic { res.push(Some(self.cdesc)); }
 
-        for param in &self.param_types {
+        for param in param_types {
             res.push(Some(param));
             if param[0] == b'J' || param[0] == b'D' { res.push(None); }
         }
@@ -350,8 +355,7 @@ impl SizeOff {
     }
 }
 
-#[allow(dead_code)] //data is not used
-pub struct DexFile<'a> {
+pub struct DexFileNoProtos<'a> {
     raw: &'a bstr,
     string_ids: SizeOff,
     type_ids: SizeOff,
@@ -359,10 +363,9 @@ pub struct DexFile<'a> {
     field_ids: SizeOff,
     method_ids: SizeOff,
     class_defs: SizeOff,
-    data: SizeOff,
 }
-impl<'a> DexFile<'a> {
-    pub fn new(data: &bstr) -> DexFile {
+impl<'a> DexFileNoProtos<'a> {
+    pub fn new(data: &bstr) -> DexFileNoProtos {
         let mut stream = Reader(data);
         stream.read(36);
         if stream.u32() != 0x70 {
@@ -375,7 +378,7 @@ impl<'a> DexFile<'a> {
         SizeOff::new(&mut stream);
         stream.u32();
 
-        DexFile {
+        DexFileNoProtos {
             raw: data,
             string_ids: SizeOff::new(&mut stream),
             type_ids: SizeOff::new(&mut stream),
@@ -383,15 +386,8 @@ impl<'a> DexFile<'a> {
             field_ids: SizeOff::new(&mut stream),
             method_ids: SizeOff::new(&mut stream),
             class_defs: SizeOff::new(&mut stream),
-            data: SizeOff::new(&mut stream),
+            // data: SizeOff::new(&mut stream),
         }
-    }
-    pub fn parse_classes(&'a self) -> Vec<DexClass<'a>> {
-        let mut classes = Vec::with_capacity(self.class_defs.size as usize);
-        for i in 0..self.class_defs.size {
-            classes.push(DexClass::new(&self, self.class_defs.off, i));
-        }
-        classes
     }
 
     fn stream(&self, offset: u32) -> Reader<'a> {
@@ -401,29 +397,58 @@ impl<'a> DexFile<'a> {
         self.stream(i).u32()
     }
 
-    pub fn string(&self, i: u32) -> &bstr {
+    pub fn string(&self, i: u32) -> &'a bstr {
         let data_off = self.u32(self.string_ids.off + i*4);
         let mut stream = self.stream(data_off);
         stream.uleb128(); // Ignore decoded length
         stream.cstr()
     }
 
-    pub fn raw_type(&self, i: u32) -> &bstr {
+    pub fn raw_type(&self, i: u32) -> &'a bstr {
         assert!(i < self.type_ids.size);
         self.string(self.u32(self.type_ids.off + i*4))
     }
 
-    pub fn cls_type(&self, i: u32) -> &bstr {
+    pub fn cls_type(&self, i: u32) -> &'a bstr {
         let data = self.raw_type(i);
         if data[0] == b'L' {
             &data[1..data.len()-1]
         } else { data }
     }
 
-    fn cls_type_opt(&self, i: u32) -> Option<&bstr> {
+    fn cls_type_opt(&self, i: u32) -> Option<&'a bstr> {
         if i == NO_INDEX { None } else { Some(self.cls_type(i)) }
+    }
+}
+
+pub struct DexFile<'a> {
+    dex: DexFileNoProtos<'a>,
+    protos: Vec<(BString, Vec<&'a bstr>, &'a bstr)>,
+}
+impl<'a> Deref for DexFile<'a> {
+    type Target = DexFileNoProtos<'a>;
+    fn deref(&self) -> &Self::Target { &self.dex }
+}
+impl<'a> DexFile<'a> {
+    pub fn new(data: &bstr) -> DexFile {
+        let dex = DexFileNoProtos::new(data);
+        let n = dex.proto_ids.size;
+        let mut protos = Vec::with_capacity(n as usize);
+        for i in 0..n {
+            protos.push(parse_prototype(&dex, i));
+        }
+        DexFile{dex: dex, protos: protos}
+    }
+
+    pub fn parse_classes(&'a self) -> Vec<DexClass<'a>> {
+        let mut classes = Vec::with_capacity(self.class_defs.size as usize);
+        for i in 0..self.class_defs.size {
+            classes.push(DexClass::new(&self, self.class_defs.off, i));
+        }
+        classes
     }
 
     pub fn field_id(&self, i: u32) -> FieldId { FieldId::new(self, i) }
     pub fn method_id(&self, i: u32) -> MethodId { MethodId::new(self, i) }
+    fn proto(&self, i: u32) -> &(BString, Vec<&'a bstr>, &'a bstr) { &self.protos[i as usize] }
 }

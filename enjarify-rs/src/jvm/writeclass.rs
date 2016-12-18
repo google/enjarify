@@ -64,7 +64,7 @@ fn write_methods<'a>(pool: &mut (ConstantPool<'a> + 'a), stream: &mut Writer, me
     for method in methods {
         stream.u16(method.access as u16 & flags::METHOD_FLAGS);
         stream.u16(pool.utf8(method.id.name));
-        stream.u16(pool._utf8(method.id.desc.into()));
+        stream.u16(pool.utf8(method.id.desc));
 
         match code_attrs.get(&method.id.method_idx) {
             Some(data) => {

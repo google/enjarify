@@ -11,25 +11,23 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::borrow::Cow;
 use std::collections::HashMap;
-use std::ops::Deref;
 
 use strings::*;
 use byteio::Writer;
 use dex::{FieldId, MethodId};
 use error;
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub struct ArgsUtf<'a>(Cow<'a, bstr>);
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+pub struct ArgsUtf<'a>(&'a bstr);
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct ArgsInd(u16);
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct ArgsInd2(u16, u16);
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct ArgsPrim(pub u64);
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub enum Entry<'a> {
     Class(ArgsInd),
     Fieldref(ArgsInd2),
@@ -106,47 +104,44 @@ pub trait ConstantPool<'a> {
         Some(self.insert_directly(entry, true))
     }
 
-    fn _utf8(&mut self, s: Cow<'a, bstr>) -> u16 {
+    fn utf8(&mut self, s: &'a bstr) -> u16 {
         if s.len() > 65535 {
             error::classfile_limit_exceeded();
         }
         self.get(Utf8(ArgsUtf(s)))
     }
-    fn utf8(&mut self, s: &'a bstr) -> u16 { self._utf8(s.into()) }
 
-    fn _class(&mut self, s: Cow<'a, bstr>) -> u16 {
-        let ind = self._utf8(s);
+    fn class(&mut self, s: &'a bstr) -> u16 {
+        let ind = self.utf8(s);
         self.get(Class(ArgsInd(ind)))
     }
-    fn class(&mut self, s: &'a bstr) -> u16 { self._class(s.into()) }
 
-    fn _string(&mut self, s: Cow<'a, bstr>) -> u16 {
-        let ind = self._utf8(s);
+    fn string(&mut self, s: &'a bstr) -> u16 {
+        let ind = self.utf8(s);
         self.get(JString(ArgsInd(ind)))
     }
-    fn string(&mut self, s: &'a bstr) -> u16 { self._string(s.into()) }
 
-    fn _nat(&mut self, name: Cow<'a, bstr>, desc: Cow<'a, bstr>) -> u16 {
-        let ind = self._utf8(name);
-        let ind2 = self._utf8(desc);
+    fn _nat(&mut self, name: &'a bstr, desc: &'a bstr) -> u16 {
+        let ind = self.utf8(name);
+        let ind2 = self.utf8(desc);
         self.get(NameAndType(ArgsInd2(ind, ind2)))
     }
 
     fn field(&mut self, trip: &FieldId<'a>) -> u16 {
         let ind = self.class(trip.cname);
-        let ind2 = self._nat(trip.name.into(), trip.desc.into());
+        let ind2 = self._nat(trip.name, trip.desc);
         self.get(Fieldref(ArgsInd2(ind, ind2)))
     }
 
     fn method(&mut self, trip: MethodId<'a>) -> u16 {
         let ind = self.class(trip.cname);
-        let ind2 = self._nat(trip.name.into(), trip.desc.into());
+        let ind2 = self._nat(trip.name, trip.desc);
         self.get(Methodref(ArgsInd2(ind, ind2)))
     }
 
     fn imethod(&mut self, trip: MethodId<'a>) -> u16 {
         let ind = self.class(trip.cname);
-        let ind2 = self._nat(trip.name.into(), trip.desc.into());
+        let ind2 = self._nat(trip.name, trip.desc);
         self.get(InterfaceMethodref(ArgsInd2(ind, ind2)))
     }
 
@@ -170,7 +165,7 @@ pub trait ConstantPool<'a> {
                 &NameAndType(ref args) => { stream.u8(12); stream.u16(args.0); stream.u16(args.1); },
                 &Utf8(ref args) => { stream.u8(1);
                     stream.u16(args.0.len() as u16);
-                    stream.write(args.0.deref());
+                    stream.write(args.0);
                 },
             }
         }

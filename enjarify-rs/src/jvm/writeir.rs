@@ -149,7 +149,7 @@ pub fn write_bytecode<'b, 'a>(pool: &'b mut (ConstantPool<'a> + 'a), method: &de
     }
 
     let isstatic = method.access as u16 & flags::ACC_STATIC != 0;
-    let arg_descs = method.id.spaced_param_types(isstatic);
+    let arg_descs = method.id.spaced_param_types(dex, isstatic);
     let regoff = code.nregs - arg_descs.len() as u16;
     let mut iargs = Vec::with_capacity(arg_descs.len());
     for (i, optdesc) in arg_descs.iter().enumerate() {

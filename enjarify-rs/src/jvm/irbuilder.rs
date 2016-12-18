@@ -115,7 +115,7 @@ impl <'b, 'a> IRBlock<'b, 'a> {
                 } else {
                     // note - will throw if actual type is boolean[] but there's not
                     // much we can do in this case
-                    self.pool._class(at.to_desc().into())
+                    self.pool.class(at.to_desc())
                 };
                 self.u8u16(CHECKCAST, ind);
             }
@@ -447,7 +447,7 @@ pub fn write_instruction<'b, 'a>(pool: &'b mut (ConstantPool<'a> + 'a), method: 
             let args = instr.args.as_ref().unwrap();
             let rtype = called_id.return_type;
 
-            for (reg, desc) in args.iter().zip(called_id.spaced_param_types(isstatic)) {
+            for (reg, desc) in args.iter().zip(called_id.spaced_param_types(dex, isstatic)) {
                 if let Some(desc) = desc { // skip long/double tops
                     block.load_desc(*reg, desc);
                 }

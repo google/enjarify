@@ -91,7 +91,7 @@ impl TypeInfo {
     fn from_params<'a>(method: &dex::Method<'a>, nregs: u16) -> Self {
         let mut res = TypeInfo::default();
         let isstatic = method.access as u16 & flags::ACC_STATIC != 0;
-        let full_ptypes = method.id.spaced_param_types(isstatic);
+        let full_ptypes = method.id.spaced_param_types(method.dex, isstatic);
         let offset = nregs - full_ptypes.len() as u16;
 
         for (i, desc) in full_ptypes.iter().enumerate() {
