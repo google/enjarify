@@ -196,7 +196,7 @@ pub fn do_inference<'a>(method: &dex::Method<'a>, code: &dex::CodeItem<'a>, inst
             for instr in &code.bytecode {
                 if tryi.start < instr.pos2 && tryi.end > instr.pos {
                     let val = all_handlers.entry(instr.pos).or_insert_with(|| Vec::new());
-                    val.extend(tryi.catches.clone()); // unnecessary copy?
+                    val.extend(&tryi.catches);
                 }
             }
         }
