@@ -54,7 +54,7 @@ def multiGen(rand):
 	used = set()
 	while 1:
 		choices = rand.choice(ordsets)
-		x = random.choice(choices)
+		x = rand.choice(choices)
 		if x not in used:
 			yield x
 		used.add(x)
