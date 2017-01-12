@@ -152,6 +152,10 @@ type DexFile struct {
 	raw                                                    string
 	string_ids, type_ids, proto_ids, field_ids, method_ids sizeOff
 	Classes                                                []DexClass
+
+	methodDescs []string
+	paramTypes  [][]string
+	returnTypes []string
 }
 
 func (self *DexFile) stream(i uint32) *byteio.Reader {
@@ -219,6 +223,17 @@ func Parse(data string) *DexFile {
 	dex.method_ids = newSizeOff(stream)
 	class_defs := newSizeOff(stream)
 	_ = newSizeOff(stream)
+
+	n := dex.proto_ids.size
+	dex.methodDescs = make([]string, n)
+	dex.paramTypes = make([][]string, n)
+	dex.returnTypes = make([]string, n)
+	for i := uint32(0); i < n; i++ {
+		desc, ptypes, rtype := parsePrototype(&dex, i)
+		dex.methodDescs[i] = desc
+		dex.paramTypes[i] = ptypes
+		dex.returnTypes[i] = rtype
+	}
 
 	classes := make([]DexClass, class_defs.size)
 	for i := uint32(0); i < class_defs.size; i++ {

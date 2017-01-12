@@ -121,38 +121,42 @@ func newCode(dex *DexFile, offset uint32) *CodeItem {
 	return &self
 }
 
+func parsePrototype(dex *DexFile, proto_idx uint32) (string, []string, string) {
+	st := dex.stream(dex.proto_ids.off + proto_idx*12)
+	_ = st.U32()
+	returnType := dex.Type(st.U32())
+	paramTypes := typeList(dex, st.U32(), false)
+
+	parts := append([]string{"("}, paramTypes...)
+	parts = append(parts, ")", returnType)
+	desc := strings.Join(parts, "")
+	return desc, paramTypes, returnType
+}
+
 type MethodId struct {
 	Triple
 	param_types []string
 	ReturnType  string
+	classDesc   string
 }
 
 func methodId(dex *DexFile, method_idx uint32) MethodId {
 	st := dex.stream(dex.method_ids.off + method_idx*8)
-	self := MethodId{Triple{Cname: dex.ClsType(uint32(st.U16()))}, nil, ""}
+	class_idx := uint32(st.U16())
+	self := MethodId{Triple{Cname: dex.ClsType(class_idx)}, nil, "", dex.Type(class_idx)}
 	proto_idx := uint32(st.U16())
 	self.Name = dex.String(st.U32())
 
-	st = dex.stream(dex.proto_ids.off + proto_idx*12)
-	_ = st.U32()
-	self.ReturnType = dex.Type(st.U32())
-	self.param_types = typeList(dex, st.U32(), false)
-
-	parts := append([]string{"("}, self.param_types...)
-	parts = append(parts, ")", self.ReturnType)
-	self.Desc = strings.Join(parts, "")
+	self.Desc = dex.methodDescs[proto_idx]
+	self.param_types = dex.paramTypes[proto_idx]
+	self.ReturnType = dex.returnTypes[proto_idx]
 	return self
 }
 
 func (self *MethodId) GetSpacedParamTypes(isstatic bool) []*string {
 	results := make([]*string, 0, len(self.param_types)+1)
 	if !isstatic {
-		if self.Cname[0] == '[' {
-			results = append(results, &self.Cname)
-		} else {
-			temp := "L" + self.Cname + ";"
-			results = append(results, &temp)
-		}
+		results = append(results, &self.classDesc)
 	}
 
 	for _, ptype := range self.param_types {
