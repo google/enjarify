@@ -97,7 +97,7 @@ func AllocateRequiredConstants(pool cpool.Pool, long_irs []*IRWriter) {
 		}
 	}
 
-	scores := map[pair]int{}
+	scores := make(map[pair]int, len(narrow_pairs)+len(wide_pairs))
 	for p, count := range narrow_pairs {
 		scores[p] = (alt_lens[p] - 3) * count
 	}

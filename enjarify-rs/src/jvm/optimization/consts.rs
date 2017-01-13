@@ -62,7 +62,7 @@ pub fn allocate_required_constants(pool: &mut ConstantPool, irs: Vec<&IRWriter>)
         }
     }
 
-    let mut scores = HashMap::new();
+    let mut scores = HashMap::with_capacity(narrow_pairs.len() + wide_pairs.len());
     for (p, count) in narrow_pairs.iter() {
         scores.insert(p.clone(), (alt_lens[p] - 3) * count);
     }
