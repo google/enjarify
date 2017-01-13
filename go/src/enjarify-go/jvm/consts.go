@@ -19,14 +19,21 @@ import (
 	"sort"
 )
 
+type pair struct {
+	Tag byte
+	X   uint64
+}
+
+func from(p cpool.Pair) pair      { return pair{p.Tag, p.X} }
+func (p pair) toPair() cpool.Pair { return cpool.Pair{p.Tag, cpool.Data{X: p.X}} }
+
 type pairint struct {
 	count int
-	key   cpool.Pair
+	key   pair
 }
 type pislice []pairint
 
-// will only be used with const keys (set X) anyway
-func ckless(a, b cpool.Pair) bool { return a.Tag < b.Tag || a.Tag == b.Tag && a.X < b.X }
+func ckless(a, b pair) bool { return a.Tag < b.Tag || a.Tag == b.Tag && a.X < b.X }
 
 func (p pislice) Len() int { return len(p) }
 func (p pislice) Less(i, j int) bool {
@@ -46,14 +53,14 @@ func AllocateRequiredConstants(pool cpool.Pool, long_irs []*IRWriter) {
 	// in the first place. In fact, there are no known real world classes that
 	// even come close to exhausting the constant pool.
 
-	narrow_pairs := map[cpool.Pair]int{}
-	wide_pairs := map[cpool.Pair]int{}
-	alt_lens := map[cpool.Pair]int{}
+	narrow_pairs := map[pair]int{}
+	wide_pairs := map[pair]int{}
+	alt_lens := map[pair]int{}
 	for _, irw := range long_irs {
 		for i := range irw.Instructions {
 			instr := &irw.Instructions[i]
 			if instr.Tag == ir.PRIMCONSTANT {
-				key := instr.PrimConstant().Pair
+				key := from(instr.PrimConstant().Pair)
 				alt_lens[key] = len(instr.Bytecode)
 				if instr.PrimConstant().T.Wide() {
 					if len(instr.Bytecode) > 3 {
@@ -69,6 +76,7 @@ func AllocateRequiredConstants(pool cpool.Pool, long_irs []*IRWriter) {
 	}
 	// see if already in the constant pool
 	for _, x := range pool.Vals() {
+		x := from(x)
 		delete(narrow_pairs, x)
 		delete(wide_pairs, x)
 	}
@@ -84,12 +92,12 @@ func AllocateRequiredConstants(pool cpool.Pool, long_irs []*IRWriter) {
 		}
 
 		for _, item := range items.Sort()[:pool.LowSpace()] {
-			pool.InsertDirectly(item.key, true)
+			pool.InsertDirectly(item.key.toPair(), true)
 			delete(narrow_pairs, item.key)
 		}
 	}
 
-	scores := map[cpool.Pair]int{}
+	scores := map[pair]int{}
 	for p, count := range narrow_pairs {
 		scores[p] = (alt_lens[p] - 3) * count
 	}
@@ -98,7 +106,7 @@ func AllocateRequiredConstants(pool cpool.Pool, long_irs []*IRWriter) {
 	}
 
 	// sort by score, then by key
-	temp := func(m map[cpool.Pair]int) (res pislice) {
+	temp := func(m map[pair]int) (res pislice) {
 		for p, _ := range m {
 			res = append(res, pairint{scores[p], p})
 		}
@@ -124,10 +132,10 @@ func AllocateRequiredConstants(pool cpool.Pool, long_irs []*IRWriter) {
 		}
 
 		if pool.Space() >= 2 && wscore > nscore && wscore > 0 {
-			pool.InsertDirectly(wideq[len(wideq)-1].key, false)
+			pool.InsertDirectly(wideq[len(wideq)-1].key.toPair(), false)
 			wideq = wideq[:len(wideq)-1]
 		} else if nscore > 0 {
-			pool.InsertDirectly(narrowq[len(narrowq)-1].key, true)
+			pool.InsertDirectly(narrowq[len(narrowq)-1].key.toPair(), true)
 			narrowq = narrowq[:len(narrowq)-1]
 		} else {
 			break
