@@ -16,7 +16,28 @@ package jvm
 import (
 	"enjarify-go/jvm/cpool"
 	"enjarify-go/jvm/ir"
+	"sort"
 )
+
+type pairint struct {
+	count int
+	key   cpool.Pair
+}
+type pislice []pairint
+
+// will only be used with const keys (set X) anyway
+func ckless(a, b cpool.Pair) bool { return a.Tag < b.Tag || a.Tag == b.Tag && a.X < b.X }
+
+func (p pislice) Len() int { return len(p) }
+func (p pislice) Less(i, j int) bool {
+	return p[i].count < p[j].count || p[i].count == p[j].count && ckless(p[i].key, p[j].key)
+}
+
+func (p pislice) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p pislice) Sort() pislice {
+	sort.Sort(p)
+	return p
+}
 
 func AllocateRequiredConstants(pool cpool.Pool, long_irs []*IRWriter) {
 	// see comments in writebytecode.finishCodeAttrs
