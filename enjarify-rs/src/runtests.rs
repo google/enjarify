@@ -30,12 +30,11 @@ pub fn main() {
         let expected = (to_string(expected) + "\n").replace("\r\n", "\n");
 
         for opts in &[Options::none(), Options::pretty(), Options::all()] {
-            let (mut classes, mut ordkeys, errors) = translate(*opts, &dexes);
-            assert!(errors.is_empty());
+            let results = translate(*opts, &dexes);
+            let mut classes: Vec<_> = results.into_iter().map(|(name, res)| (name, res.unwrap())).collect();
 
             classes.extend(stubs.clone());
-            ordkeys.extend(stubs.iter().map(|&(ref k,_)| k.clone()));
-            write_to_jar("out.jar", classes, ordkeys);
+            write_to_jar("out.jar", classes);
 
             let output = Command::new("java")
                 .args(&["-Xss515m", "-jar", "out.jar", "a.a"])

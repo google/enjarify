@@ -24,20 +24,21 @@ import (
 )
 
 // load stub files lazily
-var STUB_FILES map[string]string
+var STUB_FILES [][2]string
 
 func executeTest(name string, opts jvm.Options) {
 	fmt.Printf("Running test %s\n", name)
 	dir := "../tests/" + name
 	data := Read(dir + "/classes.dex")
-	classes, ordkeys, errors := translate(opts, data)
-	util.Assert(len(errors) == 0)
 
-	for k, v := range STUB_FILES {
-		classes[k] = v
-		ordkeys = append(ordkeys, k)
+	results := translate(opts, data)
+	classes := make([][2]string, len(results))
+	for i := range results {
+		classes[i][0] = results[i][0]
+		classes[i][1] = results[i][1]
+		util.Assert(results[i][1] != "")
 	}
-	writeToJar("out.jar", classes, ordkeys)
+	writeToJar("out.jar", classes)
 
 	out, err := exec.Command("java", "-Xss515m", "-jar", "out.jar", "a.a").CombinedOutput()
 	check(err)
@@ -52,7 +53,7 @@ func executeTest(name string, opts jvm.Options) {
 }
 
 func runTests() {
-	stubs := map[string]string{}
+	stubs := [][2]string{}
 	r, err := zip.OpenReader("../tests/stubs/stubs.zip")
 	check(err)
 	for _, f := range r.File {
@@ -60,7 +61,7 @@ func runTests() {
 		check(err)
 		data, err := ioutil.ReadAll(rc)
 		check(err)
-		stubs[f.Name] = string(data)
+		stubs = append(stubs, [2]string{f.Name, string(data)})
 		rc.Close()
 	}
 	r.Close()

@@ -44,11 +44,10 @@ pub fn main() {
         let data = read(format!("../tests/test{}/classes.dex", test));
         let dexes = vec![data];
         for bits in 0...255 {
-            let (classes, ordkeys, errors) = translate(Options::from(bits), &dexes);
-            assert!(errors.is_empty());
+            let results = translate(Options::from(bits), &dexes);
 
-            for (_, k) in ordkeys.into_iter().enumerate() {
-                let ref cls = classes[&k];
+            for (_, (_, res)) in results.into_iter().enumerate() {
+                let cls = res.unwrap();
                 // println!("filename {}", hexdigest(k.as_bytes()));
                 println!("{:08b} {}", bits, hexdigest(&cls));
 

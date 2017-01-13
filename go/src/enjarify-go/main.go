@@ -41,49 +41,41 @@ func Write(name string, data string) {
 	check(ioutil.WriteFile(name, []byte(data), os.ModePerm))
 }
 
-func translate(opts jvm.Options, dexs ...string) (map[string]string, []string, map[string]error) {
-	classes := make(map[string]string)
-	errors := make(map[string]error)
-	ordkeys := []string{}
+func translate(opts jvm.Options, dexs ...string) [][3]string {
+	results := [][3]string{}
 
 	for _, data := range dexs {
 		dex := dex.Parse(data)
 		for _, cls := range dex.Classes {
 			unicode_name := Decode(cls.Name) + ".class"
-			_, ok1 := classes[unicode_name]
-			_, ok2 := errors[unicode_name]
-			if ok1 || ok2 {
-				fmt.Printf("Warning, duplicate class name %s\n", unicode_name)
-				continue
-			}
+			result := [3]string{unicode_name, "", ""}
 
 			if class_data, err := jvm.ToClassFile(cls, opts); err == nil {
-				classes[unicode_name] = class_data
-				ordkeys = append(ordkeys, unicode_name)
+				result[1] = class_data
 			} else {
-				errors[unicode_name] = err
+				result[2] = err.Error()
 			}
+			results = append(results, result)
 
-			if (len(classes)+len(errors))%1000 == 0 {
-				fmt.Printf("%d classes processed\n", len(classes)+len(errors))
+			if len(results)%1000 == 0 {
+				fmt.Printf("%d classes processed\n", len(results))
 			}
 		}
 	}
-	return classes, ordkeys, errors
+	return results
 }
 
-func writeToJar(fname string, classes map[string]string, ordkeys []string) {
+func writeToJar(fname string, classes [][2]string) {
 	file, err := os.Create(fname)
 	check(err)
 	defer file.Close()
 
 	w := zip.NewWriter(file)
 	defer w.Close()
-	for _, unicode_name := range ordkeys {
-		data := classes[unicode_name]
-		f, err := w.Create(unicode_name)
+	for i := range classes {
+		f, err := w.Create(classes[i][0])
 		check(err)
-		_, err = f.Write([]byte(data))
+		_, err = f.Write([]byte(classes[i][1]))
 		check(err)
 	}
 }
@@ -157,13 +149,28 @@ func main() {
 		opts = jvm.NONE
 	}
 
-	classes, ordkeys, errors := translate(opts, dexs...)
-	writeToJar(outname, classes, ordkeys)
+	results := translate(opts, dexs...)
+
+	classes := make([][2]string, 0, len(results))
+	errors := [][2]string{}
+	for i := range results {
+		name := results[i][0]
+		class := results[i][1]
+		err := results[i][2]
+
+		if class != "" {
+			classes = append(classes, [2]string{name, class})
+		} else {
+			classes = append(classes, [2]string{name, err})
+		}
+	}
+
+	writeToJar(outname, classes)
 	outfile.Close()
 	fmt.Printf("Output written to %s\n", outname)
 
-	for name, error := range errors {
-		fmt.Printf("%s %s\n", name, error.Error())
+	for i := range errors {
+		fmt.Printf("%s %s\n", errors[i][0], errors[i][1])
 	}
 	fmt.Printf("%d classes translated successfully, %d classes had errors\n", len(classes), len(errors))
 }

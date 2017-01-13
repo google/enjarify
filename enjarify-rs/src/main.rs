@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #![feature(inclusive_range_syntax)]
-use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -66,11 +65,9 @@ fn read_jar(fname: &str) -> Vec<(String, BString)> {
     items
 }
 
-pub fn write_to_jar(fname: &str, mut classes: HashMap<String, BString>, ordkeys: Vec<String>) {
-    assert!(classes.len() == ordkeys.len());
+pub fn write_to_jar(fname: &str, classes: Vec<(String, BString)>) {
     let mut archive = zip::ZipWriter::new(File::create(fname).unwrap());
-    for unicode_name in ordkeys {
-        let data = classes.remove(&unicode_name).unwrap();
+    for (unicode_name, data) in classes.into_iter() {
         // Don't bother compressing small files
         let method = if data.len() > 10000 {Deflated} else {Stored};
         archive.start_file(unicode_name, method).unwrap();
@@ -78,37 +75,32 @@ pub fn write_to_jar(fname: &str, mut classes: HashMap<String, BString>, ordkeys:
     }
 }
 
-fn translate(opts: Options, dexes: &[BString]) -> (HashMap<String, BString>, Vec<String>, HashMap<String, String>) {
-    let mut classes = HashMap::new();
-    let mut errors = HashMap::new();
-    let mut ordkeys = Vec::new();
+fn translate(opts: Options, dexes: &[BString]) -> Vec<(String, Result<BString, String>)> {
+    let mut results = Vec::new();
 
     for data in dexes.iter() {
         let dex = dex::DexFile::new(data);
-        for cls in dex.parse_classes() {
+        let dex_classes = dex.parse_classes();
+        results.reserve(dex_classes.len());
+        for cls in dex_classes {
             let unicode_name = mutf8::decode(cls.name).into_owned() + ".class";
-            if classes.contains_key(&unicode_name) || errors.contains_key(&unicode_name) {
-                println!("Warning, duplicate class name {}", unicode_name);
-                continue;
-            }
 
-            panic::catch_unwind(panic::AssertUnwindSafe(|| {
-                ordkeys.push(unicode_name.clone());
-                classes.insert(unicode_name.clone(), jvm::writeclass::to_class_file(&cls, opts));
+            let res = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+                Ok(jvm::writeclass::to_class_file(&cls, opts))
             })).unwrap_or_else(|err| {
                 let error_string = err.downcast::<String>().map(|b| *b).or_else(|err| {
                     err.downcast::<&'static str>().map(|s| s.to_string())
                 }).unwrap_or("panic with unknown type".to_string());
-                errors.insert(unicode_name, error_string);
+                Err(error_string)
             });
 
-            if (classes.len() + errors.len()) % 1000 == 0 {
-                println!("{} classes processed", classes.len() + errors.len());
+            results.push((unicode_name, res));
+            if (results.len()) % 1000 == 0 {
+                println!("{} classes processed", results.len());
             }
         };
     }
-
-    (classes, ordkeys, errors)
+    results
 }
 
 fn main() {
@@ -146,13 +138,23 @@ fn main() {
     {OpenOptions::new().write(true).create(true).create_new(!opts.opt_present("force")).open(&outname).expect("Error, output file already exists and -f was not specified. To overwrite the output file, pass -f\n")};
 
     let translate_options = if opts.opt_present("fast") { Options::none() } else { Options::pretty() };
-    let (classes, ordkeys, errors) = translate(translate_options, &dexes);
+    let results = translate(translate_options, &dexes);
+
+    let mut classes = Vec::with_capacity(results.len());
+    let mut errors = Vec::new();
+    for (name, res) in results.into_iter() {
+        match res {
+            Ok(data) => classes.push((name, data)),
+            Err(error) => errors.push((name, error)),
+        }
+    }
+
     let clen = classes.len();
-    write_to_jar(&outname, classes, ordkeys);
+    write_to_jar(&outname, classes);
 
     println!("Output written to {}", outname);
 
-    for (name, error) in errors.iter() {
+    for &(ref name, ref error) in errors.iter() {
         println!("{} {}", name, error);
     }
     println!("{} classes translated successfully, {} classes had errors", clen, errors.len());
