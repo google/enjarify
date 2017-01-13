@@ -45,9 +45,16 @@ func width(tag byte) int {
 }
 
 type Data struct {
-	s      string
-	p1, p2 uint16
-	X      uint64
+	s string
+	X uint64
+}
+
+func fromInds(cpinds ...uint16) Data {
+	x := uint64(cpinds[0])
+	if len(cpinds) > 1 {
+		x += uint64(cpinds[1]) << 32
+	}
+	return Data{X: x}
 }
 
 type Pair struct {
@@ -130,19 +137,19 @@ func (self *constantPoolBase) Utf8(s string) uint16 {
 }
 
 func (self *constantPoolBase) Class(s string) uint16 {
-	return self.get(CONSTANT_Class, Data{p1: self.Utf8(s)})
+	return self.get(CONSTANT_Class, fromInds(self.Utf8(s)))
 }
 
 func (self *constantPoolBase) String(s string) uint16 {
-	return self.get(CONSTANT_String, Data{p1: self.Utf8(s)})
+	return self.get(CONSTANT_String, fromInds(self.Utf8(s)))
 }
 
 func (self *constantPoolBase) Nat(name, desc string) uint16 {
-	return self.get(CONSTANT_NameAndType, Data{p1: self.Utf8(name), p2: self.Utf8(desc)})
+	return self.get(CONSTANT_NameAndType, fromInds(self.Utf8(name), self.Utf8(desc)))
 }
 
 func (self *constantPoolBase) triple(tag byte, trip dex.Triple) uint16 {
-	return self.get(tag, Data{p1: self.Class(trip.Cname), p2: self.Nat(trip.Name, trip.Desc)})
+	return self.get(tag, fromInds(self.Class(trip.Cname), self.Nat(trip.Name, trip.Desc)))
 }
 
 func (self *constantPoolBase) Field(trip dex.Triple) uint16 {
@@ -188,10 +195,10 @@ func (self *constantPoolBase) writeEntry(stream *byteio.Writer, item Pair) {
 	case CONSTANT_Long, CONSTANT_Double:
 		stream.U64(item.X)
 	case CONSTANT_Class, CONSTANT_String:
-		stream.U16(item.p1)
+		stream.U16(uint16(item.X))
 	default:
-		stream.U16(item.p1)
-		stream.U16(item.p2)
+		stream.U16(uint16(item.X))
+		stream.U16(uint16(item.X >> 32))
 	}
 }
 
