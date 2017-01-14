@@ -31,7 +31,7 @@ pub enum JvmInstructionSub {
     OtherConstant,
     Goto(GotoImpl),
     If(IfImpl),
-    Switch(SwitchImpl),
+    Switch(Box<SwitchImpl>),
     Other,
 }
 pub use self::JvmInstructionSub::*;
@@ -219,7 +219,7 @@ pub fn switch(default: u32, jumps: HashMap<i32, u32>) -> JvmInstruction {
     let table_size = 4*(table_count+1);
     let jump_size = 8*(jumps.len() as i64);
 
-    JvmInstruction{bytecode: None, sub: Switch(
+    JvmInstruction{bytecode: None, sub: Switch(Box::new(
         SwitchImpl{
             default: default,
             jumps: jumps,
@@ -229,7 +229,7 @@ pub fn switch(default: u32, jumps: HashMap<i32, u32>) -> JvmInstruction {
             is_table: jump_size > table_size,
             nopad_size: 9 + min(jump_size, table_size) as u32,
         }
-    )}
+    ))}
 }
 
 pub fn other(bc: BString) -> JvmInstruction { JvmInstruction{bytecode: Some(bc), sub: Other} }
