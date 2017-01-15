@@ -43,23 +43,30 @@ func Write(name string, data string) {
 
 func translate(opts jvm.Options, dexs ...string) [][3]string {
 	results := [][3]string{}
+	sem := make(chan struct{}, 9999)
 
 	for _, data := range dexs {
-		dex := dex.Parse(data)
-		for _, cls := range dex.Classes {
-			unicode_name := Decode(cls.Name) + ".class"
-			result := [3]string{unicode_name, "", ""}
+		dex_ := dex.Parse(data)
+		n := len(dex_.Classes)
+		oldlen := len(results)
+		results = append(results, make([][3]string, n)...)
 
-			if class_data, err := jvm.ToClassFile(cls, opts); err == nil {
-				result[1] = class_data
-			} else {
-				result[2] = err.Error()
-			}
-			results = append(results, result)
+		for i, cls := range dex_.Classes {
+			go func(cls dex.DexClass, result *[3]string) {
+				unicode_name := Decode(cls.Name) + ".class"
+				result[0] = unicode_name
 
-			if len(results)%1000 == 0 {
-				fmt.Printf("%d classes processed\n", len(results))
-			}
+				if class_data, err := jvm.ToClassFile(cls, opts); err == nil {
+					result[1] = class_data
+				} else {
+					result[2] = err.Error()
+				}
+				sem <- struct{}{}
+			}(cls, &results[oldlen+i])
+		}
+
+		for i := 0; i < n; i++ {
+			<-sem
 		}
 	}
 	return results

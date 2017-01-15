@@ -18,6 +18,8 @@ extern crate crypto;
 use self::crypto::digest::Digest;
 use self::crypto::sha2::Sha256;
 
+use rayon::prelude::*;
+
 use strings::*;
 use jvm::optimization::options::Options;
 use super::{read, translate};
@@ -37,30 +39,32 @@ fn hexdigest(s: &bstr) -> String {
 }
 
 pub fn main() {
+    let testfiles = (1..8).map(|test| read(format!("../tests/test{}/classes.dex", test))).collect::<Vec<_>>();
+
+    let outputs: Vec<Vec<(BString, String)>> = (0..(7*256)).into_par_iter().map(|ind| {
+        let ti = (ind / 256) as usize;
+        let bits = ind % 256;
+        let dexes = &testfiles[ti..ti+1];
+
+        let results = translate(Options::from(bits as u8), dexes);
+        let output = results.into_iter().map(|(_, res)| {
+            let cls = res.unwrap();
+            let digest = hexdigest(&cls);
+            (cls, digest)
+        }).collect();
+        output
+    }).collect();
+
     let mut fullhash = vec![];
+    for (ind, pairs) in outputs.into_iter().enumerate() {
+        let bits = ind % 256;
+        if bits==0 {println!("test{}", (ind/256)+1);}
 
-    for test in 1..8 {
-        println!("test{}", test);
-        let data = read(format!("../tests/test{}/classes.dex", test));
-        let dexes = vec![data];
-        for bits in 0...255 {
-            let results = translate(Options::from(bits), &dexes);
-
-            for (_, (_, res)) in results.into_iter().enumerate() {
-                let cls = res.unwrap();
-                // println!("filename {}", hexdigest(k.as_bytes()));
-                println!("{:08b} {}", bits, hexdigest(&cls));
-
-                // let fname = format!("../../rsout/{}_{}_{}.class", test, bits, i);
-                // let mut f = File::create(fname).unwrap();
-                // f.write_all(cls).unwrap();
-
-                // fullhash.extend(k.as_bytes());
-                fullhash.extend(cls);
-                fullhash = hash(&fullhash);
-            }
+        for (cls, digest) in pairs {
+            println!("{:08b} {}", bits, digest);
+            fullhash.extend(cls);
+            fullhash = hash(&fullhash);
         }
     }
-
     println!("done!\nFinal hash: {}", hexdigest(&fullhash));
 }

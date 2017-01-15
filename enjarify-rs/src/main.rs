@@ -24,6 +24,8 @@ use std::str;
 extern crate lazy_static;
 
 extern crate getopts;
+extern crate rayon;
+use rayon::prelude::*;
 extern crate zip;
 use zip::CompressionMethod::{Deflated,Stored};
 
@@ -81,8 +83,8 @@ fn translate(opts: Options, dexes: &[BString]) -> Vec<(String, Result<BString, S
     for data in dexes.iter() {
         let dex = dex::DexFile::new(data);
         let dex_classes = dex.parse_classes();
-        results.reserve(dex_classes.len());
-        for cls in dex_classes {
+
+        results.extend(dex_classes.par_iter().map(|cls| {
             let unicode_name = mutf8::decode(cls.name).into_owned() + ".class";
 
             let res = panic::catch_unwind(panic::AssertUnwindSafe(|| {
@@ -93,12 +95,8 @@ fn translate(opts: Options, dexes: &[BString]) -> Vec<(String, Result<BString, S
                 }).unwrap_or("panic with unknown type".to_string());
                 Err(error_string)
             });
-
-            results.push((unicode_name, res));
-            if (results.len()) % 1000 == 0 {
-                println!("{} classes processed", results.len());
-            }
-        };
+            (unicode_name, res)
+        }).collect::<Vec<_>>());
     }
     results
 }
