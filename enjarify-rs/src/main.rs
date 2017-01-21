@@ -16,6 +16,7 @@ use std::env;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
+use std::mem;
 use std::path::Path;
 use std::panic;
 use std::str;
@@ -23,9 +24,12 @@ use std::str;
 #[macro_use]
 extern crate lazy_static;
 
+extern crate futures;
+use futures::Future;
+extern crate futures_cpupool;
+use futures_cpupool::CpuPool;
+
 extern crate getopts;
-extern crate rayon;
-use rayon::prelude::*;
 extern crate zip;
 use zip::CompressionMethod::{Deflated,Stored};
 
@@ -77,26 +81,32 @@ pub fn write_to_jar(fname: &str, classes: Vec<(String, BString)>) {
     }
 }
 
-fn translate(opts: Options, dexes: &[BString]) -> Vec<(String, Result<BString, String>)> {
+fn translate(pool: &CpuPool, opts: Options, dexes: &[BString]) -> Vec<(String, Result<BString, String>)> {
     let mut results = Vec::new();
 
     for data in dexes.iter() {
         let dex = dex::DexFile::new(data);
         let dex_classes = dex.parse_classes();
+        // futures_cpupool, y u no scoped threads?
+        let unsafe_classes: Vec<dex::DexClass<'static>> = unsafe{ mem::transmute(dex_classes) };
 
-        results.extend(dex_classes.par_iter().map(|cls| {
-            let unicode_name = mutf8::decode(cls.name).into_owned() + ".class";
+        let result_futures: Vec<_> = unsafe_classes.into_iter().map(|cls| {
+            pool.spawn_fn(move || {
+                let unicode_name = mutf8::decode(cls.name).into_owned() + ".class";
 
-            let res = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-                Ok(jvm::writeclass::to_class_file(&cls, opts))
-            })).unwrap_or_else(|err| {
-                let error_string = err.downcast::<String>().map(|b| *b).or_else(|err| {
-                    err.downcast::<&'static str>().map(|s| s.to_string())
-                }).unwrap_or("panic with unknown type".to_string());
-                Err(error_string)
-            });
-            (unicode_name, res)
-        }).collect::<Vec<_>>());
+                let res = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+                    Ok(jvm::writeclass::to_class_file(&cls, opts))
+                })).unwrap_or_else(|err| {
+                    let error_string = err.downcast::<String>().map(|b| *b).or_else(|err| {
+                        err.downcast::<&'static str>().map(|s| s.to_string())
+                    }).unwrap_or("panic with unknown type".to_string());
+                    Err(error_string)
+                });
+                let res: Result<_, ()> = Ok((unicode_name, res));
+                res
+            })
+        }).collect();
+        results.extend(result_futures.into_iter().map(|fut| fut.wait().unwrap()));
     }
     results
 }
@@ -135,8 +145,9 @@ fn main() {
 
     {OpenOptions::new().write(true).create(true).create_new(!opts.opt_present("force")).open(&outname).expect("Error, output file already exists and -f was not specified. To overwrite the output file, pass -f\n")};
 
+    let pool = CpuPool::new_num_cpus();
     let translate_options = if opts.opt_present("fast") { Options::none() } else { Options::pretty() };
-    let results = translate(translate_options, &dexes);
+    let results = translate(&pool, translate_options, &dexes);
 
     let mut classes = Vec::with_capacity(results.len());
     let mut errors = Vec::new();

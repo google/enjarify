@@ -15,12 +15,15 @@
 // use std::fs::File;
 use std::process::Command;
 
+use futures_cpupool::CpuPool;
+
 use strings::*;
 
 use jvm::optimization::options::Options;
 use super::{read, read_jar, translate, write_to_jar};
 
 pub fn main() {
+    let pool = CpuPool::new_num_cpus();
     let stubs = read_jar("../tests/stubs/stubs.zip");
     for test in 1..7 {
         println!("test{}", test);
@@ -30,7 +33,7 @@ pub fn main() {
         let expected = (to_string(expected) + "\n").replace("\r\n", "\n");
 
         for opts in &[Options::none(), Options::pretty(), Options::all()] {
-            let results = translate(*opts, &dexes);
+            let results = translate(&pool, *opts, &dexes);
             let mut classes: Vec<_> = results.into_iter().map(|(name, res)| (name, res.unwrap())).collect();
 
             classes.extend(stubs.clone());

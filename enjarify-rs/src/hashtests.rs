@@ -13,12 +13,14 @@
 // limitations under the License.
 // use std::io::prelude::*;
 // use std::fs::File;
+use std::sync::Arc;
 
 extern crate crypto;
 use self::crypto::digest::Digest;
 use self::crypto::sha2::Sha256;
 
-use rayon::prelude::*;
+use futures::Future;
+use futures_cpupool::CpuPool;
 
 use strings::*;
 use jvm::optimization::options::Options;
@@ -39,27 +41,37 @@ fn hexdigest(s: &bstr) -> String {
 }
 
 pub fn main() {
+    let pool = CpuPool::new_num_cpus();
     let testfiles = (1..8).map(|test| read(format!("../tests/test{}/classes.dex", test))).collect::<Vec<_>>();
+    let testfiles = Arc::new(testfiles);
 
-    let outputs: Vec<Vec<(BString, String)>> = (0..(7*256)).into_par_iter().map(|ind| {
-        let ti = (ind / 256) as usize;
-        let bits = ind % 256;
-        let dexes = &testfiles[ti..ti+1];
+    let output_futures: Vec<_> = (0..(7*256)).into_iter().map(|ind| {
+        let testfiles = testfiles.clone();
 
-        let results = translate(Options::from(bits as u8), dexes);
-        let output = results.into_iter().map(|(_, res)| {
-            let cls = res.unwrap();
-            let digest = hexdigest(&cls);
-            (cls, digest)
-        }).collect();
-        output
+        pool.spawn_fn(move || {
+            let ti = (ind / 256) as usize;
+            let bits = ind % 256;
+            let dexes = &testfiles[ti..ti+1];
+
+            let pool = CpuPool::new(1);
+            let results = translate(&pool, Options::from(bits as u8), dexes);
+            let output = results.into_iter().map(|(_, res)| {
+                let cls = res.unwrap();
+                let digest = hexdigest(&cls);
+                (cls, digest)
+            }).collect();
+
+            let res: Result<Vec<_>, ()> = Ok(output);
+            res
+        })
     }).collect();
 
     let mut fullhash = vec![];
-    for (ind, pairs) in outputs.into_iter().enumerate() {
+    for (ind, fut) in output_futures.into_iter().enumerate() {
         let bits = ind % 256;
         if bits==0 {println!("test{}", (ind/256)+1);}
 
+        let pairs = fut.wait().unwrap();
         for (cls, digest) in pairs {
             println!("{:08b} {}", bits, digest);
             fullhash.extend(cls);
