@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import array
-
 from .byteio import Reader
 from .dalvik import parseBytecode
 from .util import signExtend
@@ -23,9 +20,9 @@ NO_INDEX = 0xFFFFFFFF
 def typeList(dex, off, parseClsDesc=False):
     if off == 0:
         return []
-    size = dex.u32s[off//4]
-    u16_off = (off//4 + 1) * 2
-    idxs = dex.u16s[u16_off:u16_off+size]
+    st = dex.stream(off)
+    size = st.u32()
+    idxs = [st.u16() for _ in range(size)]
     func = dex.clsType if parseClsDesc else dex.type
     return list(map(func, idxs))
 
@@ -100,8 +97,9 @@ class MethodId(MFIdMixin):
         self.cname = dex.clsType(stream.u16())
         proto_idx = stream.u16()
         self.name = dex.string(stream.u32())
-        off = (dex.proto_ids.off + proto_idx * 12)//4
-        shorty_idx, return_idx, parameters_off = dex.u32s[off:off+3]
+
+        stream2 = dex.stream(dex.proto_ids.off + proto_idx * 12)
+        shorty_idx, return_idx, parameters_off = stream2.u32(), stream2.u32(), stream2.u32()
         self.return_type = dex.type(return_idx)
         self.param_types = typeList(dex, parameters_off)
 
@@ -200,17 +198,18 @@ class ClassData:
 class DexClass:
     def __init__(self, dex, base_off, i):
         self.dex = dex
-        offset = base_off//4 + i*8
-        words = dex.u32s[offset:offset+8]
-        self.name = dex.clsType(words[0])
-        self.access = words[1]
-        self.super = dex.clsType(words[2]) if words[2] != NO_INDEX else None
-        self.interfaces = typeList(dex, words[3], parseClsDesc=True)
-        # ignore sourcefile for now
-        # ignore annotations for now
-        self.data_off = words[6]
+        st = dex.stream(base_off + i*32)
+
+        self.name = dex.clsType(st.u32())
+        self.access = st.u32()
+        super_ = st.u32()
+        self.super = dex.clsType(super_) if super_ != NO_INDEX else None
+        self.interfaces = typeList(dex, st.u32(), parseClsDesc=True)
+        _ = st.u32()
+        _ = st.u32()
+        self.data_off = st.u32()
         self.data = None # parse data lazily in parseData()
-        self.constant_values_off = words[7]
+        self.constant_values_off = st.u32()
 
     def parseData(self):
         if self.data is None:
@@ -228,11 +227,6 @@ class SizeOff:
 class DexFile:
     def __init__(self, data):
         self.raw = data
-        self.u16s = array.array('H', data[:len(data) & ~1])
-        assert self.u16s.itemsize == 2
-        self.u32s = array.array('I', data[:len(data) & ~3])
-        assert self.u32s.itemsize == 4
-
         stream = Reader(data)
 
         # parse header
@@ -260,14 +254,15 @@ class DexFile:
     def stream(self, offset): return Reader(self.raw, offset)
 
     def string(self, i):
-        data_off = self.u32s[self.string_ids.off//4 + i]
+        data_off = self.stream(self.string_ids.off + i*4).u32()
         stream = self.stream(data_off)
         stream.uleb128() # ignore decoded length
         return stream.readCStr()
 
     def type(self, i):
         if 0 <= i < NO_INDEX:
-            return self.string(self.u32s[self.type_ids.off//4 + i])
+            str_idx = self.stream(self.type_ids.off + i*4).u32()
+            return self.string(str_idx)
 
     def clsType(self, i):
         # Can be either class _name_ or array _descriptor_
