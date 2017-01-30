@@ -145,18 +145,16 @@ def parseInstruction(dex, insns_start_pos, shorts, pos):
     fillarrdata = None
     if word == 0x100 or word == 0x200: #switch
         size = shorts[pos+1]
-        intoff = (insns_start_pos + pos*2 + 4)//4
+        st = dex.stream(insns_start_pos + pos*2 + 4)
 
         if word == 0x100: #packed
-            first_key = dex.u32s[intoff]
-            intoff += 1
-            targets = dex.u32s[intoff:intoff+size]
+            first_key = st.u32()
+            targets = [st.u32() for _ in range(size)]
             newpos = pos + 2 + (1 + size)*2
             switchdata = {(i+first_key):x for i,x in enumerate(targets)}
         else: #sparse
-            keys = dex.u32s[intoff:intoff+size]
-            intoff += size
-            targets = dex.u32s[intoff:intoff+size]
+            keys = [st.u32() for _ in range(size)]
+            targets = [st.u32() for _ in range(size)]
             newpos = pos + 2 + (size + size)*2
             switchdata = dict(zip(keys, targets))
 
