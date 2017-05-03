@@ -14,6 +14,7 @@
 from .byteio import Reader
 from .dalvik import parseBytecode
 from .util import signExtend
+from . import flags
 
 NO_INDEX = 0xFFFFFFFF
 
@@ -210,6 +211,10 @@ class DexClass:
         self.data_off = st.u32()
         self.data = None # parse data lazily in parseData()
         self.constant_values_off = st.u32()
+
+        #dex ignored ACC_SUPER flag, so restore it here
+        if not self.access & flags.ACC_INTERFACE:
+            self.access |= flags.ACC_SUPER
 
     def parseData(self):
         if self.data is None:
