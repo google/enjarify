@@ -31,7 +31,7 @@ class JvmInstruction:
     def targets(self): return []
 
 # Used to mark locations in the IR instructions for various purposes. These are
-# seperate IR 'instructions' since the optimization passes may remove or replace
+# separate IR 'instructions' since the optimization passes may remove or replace
 # the other instructions.
 class Label(JvmInstruction):
     def __init__(self, id=None):
