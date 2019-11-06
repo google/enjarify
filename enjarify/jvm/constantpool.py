@@ -98,6 +98,11 @@ class ConstantPoolBase:
         if item is None:
             return
         tag, val = item
+
+        if val is None:
+            # val might be None in some cases and triggers error in len(val)
+            return
+
         stream.u8(tag)
 
         if tag == CONSTANT_Utf8:
